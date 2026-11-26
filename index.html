@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#090d18" />
+  <title>Shapehero: Infinite Foundry</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <div class="brand-mark"><span class="mark-core"></span><span class="mark-orbit"></span></div>
+      <div class="brand-copy"><div class="eyebrow">INFINITE DEFENSE PROTOCOL</div><h1>SHAPEHERO <span>FOUNDRY</span></h1></div>
+      <div class="top-actions">
+        <button id="soundBtn" class="icon-btn" aria-label="Toggle sound" title="Sound on/off">♫</button>
+        <button id="pauseBtn" class="icon-btn" aria-label="Pause game" title="Pause / resume">Ⅱ</button>
+      </div>
+    </header>
+
+    <section class="hud" aria-label="Game status">
+      <div class="hud-item wave-hud"><div class="hud-icon wave-icon">↗</div><div><span class="hud-label">WAVE</span><strong id="waveValue">01</strong></div><div class="wave-progress"><span id="waveProgress"></span></div></div>
+      <div class="hud-item"><div class="hud-icon credit-icon">◈</div><div><span class="hud-label">ALLOY</span><strong id="creditValue">110</strong></div><span class="hud-trend">+<b id="incomeValue">0</b>/s</span></div>
+      <div class="hud-item"><div class="hud-icon core-icon">⬡</div><div><span class="hud-label">CORE INTEGRITY</span><strong id="coreValue">100%</strong></div><div class="core-meter"><span id="coreMeter"></span></div></div>
+      <div class="hud-item kills-item"><div class="hud-icon kill-icon">✦</div><div><span class="hud-label">SHAPES CLEARED</span><strong id="killValue">0</strong></div></div>
+      <div class="hud-item time-item"><div class="hud-icon time-icon">◷</div><div><span class="hud-label">SURVIVAL</span><strong id="timeValue">00:00</strong></div></div>
+    </section>
+
+    <section class="arena-wrap">
+      <div class="arena-heading"><div><span class="live-dot"></span><span id="arenaLabel">FOUNDRY FRONT</span><span class="sector">SECTOR <b id="sectorValue">01</b></span></div><div class="arena-hint" id="hintText">SELECT A STRUCTURE · THEN PLACE IT ON AN EMPTY PAD</div></div>
+      <div class="arena-frame">
+        <canvas id="gameCanvas" aria-label="Shapehero battlefield"></canvas>
+        <div class="toast" id="toast" aria-live="polite"></div>
+        <div class="overlay" id="overlay">
+          <div class="overlay-panel"><div class="overlay-emblem">⬡</div><span class="eyebrow">FOUNDRY SHUTDOWN</span><h2>CORE BREACHED</h2><p>Your shapes fought bravely. The swarm keeps coming.</p><div class="run-stats"><div><span>WAVE REACHED</span><b id="finalWave">01</b></div><div><span>SHAPES CLEARED</span><b id="finalKills">0</b></div><div><span>SURVIVAL TIME</span><b id="finalTime">00:00</b></div></div><button id="restartBtn" class="primary-btn">RESTART FOUNDRY <span>↻</span></button></div>
+        </div>
+        <div class="pause-overlay" id="pauseOverlay"><div>Ⅱ <span>PAUSED</span></div></div>
+      </div>
+      <div class="arena-footer"><span><i class="legend-player"></i> YOUR SHAPES</span><span><i class="legend-enemy"></i> THE SWARM</span><span class="footer-tip">HOLD THE LINE. BUILD FOREVER.</span><span id="speedLabel">SIMULATION <b>1×</b></span></div>
+    </section>
+
+    <section class="build-section">
+      <div class="section-heading"><div><span class="section-index">01</span><div><h2>BUILD YOUR ARMY</h2><p>Every structure adds a new layer to your defense.</p></div></div><div class="build-controls"><span id="buildCount">0 / 9 PADS FILLED</span><button id="cancelBtn" class="text-btn">CANCEL <span>Esc</span></button></div></div>
+      <div class="build-grid" id="buildGrid"></div>
+    </section>
+    <footer class="bottom-note"><span>∞ ENDLESS MODE</span><span>THE SWARM EVOLVES EVERY 5 WAVES</span><span>SHAPEHERO SYSTEMS <b>v.∞</b></span></footer>
+  </main>
+  <script src="game.js"></script>
+</body>
+</html>

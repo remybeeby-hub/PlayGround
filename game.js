@@ -349,7 +349,53 @@ function updateMeteors(dt){
 }
 
 const palette={rose:'#bd6f64',red:'#c45c4d',orange:'#dc895c',yellow:'#e7c56e',gold:'#d5aa62',blue:'#6e9fb0',teal:'#71a9a0',green:'#77956c',purple:'#947da8',pink:'#d692aa',white:'#e7e2d4',black:'#30353a',silver:'#aeb9b8',golden:'#d5aa62'};
-function colorFrom(text){for(const [name,color] of Object.entries(palette))if(text.includes(name))return color;return ['#d3a87a','#9ba982','#819ea0','#bb9075','#ada1bb'][Math.floor(rand()*5)];}
+function colorFrom(text){
+  for(const [name,color] of Object.entries(palette))if(text.includes(name))return color;
+  const learned=Object.entries(promptMemory.vocabulary.colors).filter(([name,count])=>palette[name]&&count>0);
+  const total=learned.reduce((sum,[,count])=>sum+count,0);
+  if(total){let choice=rand()*total;for(const [name,count] of learned){choice-=count;if(choice<0)return palette[name];}}
+  return ['#d3a87a','#9ba982','#819ea0','#bb9075','#ada1bb'][Math.floor(rand()*5)];
+}
+
+// Local, browser-persisted prompt learning. No network or API key is used.
+const LEARNING_KEY='elsewhere.prompt-learning.v1';
+let promptMemory={prompts:{},vocabulary:{colors:{},nouns:{},styles:{}},count:0};
+try{
+  const saved=JSON.parse(localStorage.getItem(LEARNING_KEY)||'null');
+  if(saved&&typeof saved==='object'){
+    const vocabulary=saved.vocabulary&&typeof saved.vocabulary==='object'?saved.vocabulary:{};
+    promptMemory={
+      prompts:saved.prompts&&typeof saved.prompts==='object'?saved.prompts:{},
+      vocabulary:{colors:vocabulary.colors&&typeof vocabulary.colors==='object'?vocabulary.colors:{},nouns:vocabulary.nouns&&typeof vocabulary.nouns==='object'?vocabulary.nouns:{},styles:vocabulary.styles&&typeof vocabulary.styles==='object'?vocabulary.styles:{}},
+      count:Number.isFinite(saved.count)?saved.count:0
+    };
+  }
+}catch{}
+function rememberPrompt(text,resultKind){
+  const words=text.toLowerCase().replace(/[^a-z0-9\s-]/g,' ').split(/\s+/).filter(w=>w.length>2&&!/^(add|make|create|build|put|the|with|from|here|want|please|into|show|give|that|this)$/.test(w));
+  const key=text.toLowerCase().trim().replace(/\s+/g,' ');
+  if(!key)return;
+  const prior=promptMemory.prompts[key]||{count:0,kind:'wonder'};
+  promptMemory.prompts[key]={count:prior.count+1,kind:resultKind||prior.kind,lastSeen:Date.now()};
+  promptMemory.count++;
+  for(const word of words){
+    const type=/castle|house|tree|flower|animal|vehicle|moon|bridge|mountain|statue|fountain/.test(word)?'nouns':Object.hasOwn(palette,word)?'colors':'styles';
+    promptMemory.vocabulary[type][word]=(promptMemory.vocabulary[type][word]||0)+1;
+  }
+  try{localStorage.setItem(LEARNING_KEY,JSON.stringify(promptMemory));}catch{}
+}
+function learnedPrompt(text){
+  const key=text.toLowerCase().trim().replace(/\s+/g,' ');
+  const exact=promptMemory.prompts[key];if(exact)return exact.kind;
+  const tokens=new Set(key.split(/[^a-z0-9]+/).filter(w=>w.length>2));let best=null,bestScore=0;
+  for(const [saved,entry] of Object.entries(promptMemory.prompts)){
+    const other=new Set(saved.split(/[^a-z0-9]+/).filter(w=>w.length>2));
+    if(!other.size)continue;const overlap=[...tokens].filter(w=>other.has(w)).length;
+    const score=overlap/(Math.max(tokens.size,other.size)||1);
+    if(score>.42&&score>bestScore){bestScore=score;best=entry.kind;}
+  }
+  return best;
+}
 const bagelTones=[new THREE.Color('#87502f'),new THREE.Color('#c98242'),new THREE.Color('#f3cf86')];
 function toastedColor(source){
   const light=source.r*.2126+source.g*.7152+source.b*.0722;
@@ -445,6 +491,8 @@ function spawnWish(text){
   const at=new THREE.Vector3(player.x+Math.sin(player.yaw)*7,terrainHeight(player.x+Math.sin(player.yaw)*7,player.z-Math.cos(player.yaw)*7),player.z-Math.cos(player.yaw)*7);
   const position=new THREE.Vector3(at.x,at.y,at.z),group=new THREE.Group();group.position.copy(position);generated.add(group);
   let kind='wonder',noun='wonder';
+  const learned=learnedPrompt(text);
+  if(learned&&learned!=='wonder')kind=learned;
   const say=(match,type,name)=>{if(match.test(lower)){kind=type;noun=name;return true;}return false;};
   if(!say(/castle|palace|fortress|tower/, 'castle','a little castle')) {
   if(!say(/house|cabin|home|cottage|villa|building/, 'house','a new home')) {
@@ -522,7 +570,8 @@ function spawnWish(text){
   styleNewObject(group);group.position.y=height-.35;group.scale.setScalar(.04);group.userData.targetScale=big;group.userData.rise=true;props.push(group);
   burstAt(new THREE.Vector3(position.x,height+.3,position.z),color,38);
   const descriptor=/giant|huge|massive|towering/.test(lower)?'A new landmark just took root.':`You imagined ${noun}. It is here now.`;
-  return {description:descriptor,position};
+  rememberPrompt(text,kind);
+  return {description:descriptor,position,kind};
 }
 function addOcean(){
   const x=player.x+Math.sin(player.yaw)*12+Math.cos(player.yaw)*7,z=player.z-Math.cos(player.yaw)*12+Math.sin(player.yaw)*7;

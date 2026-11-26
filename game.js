@@ -18,6 +18,9 @@ renderer.toneMappingExposure = 1.08;
 const world = new THREE.Group(); scene.add(world);
 const generated = new THREE.Group(); world.add(generated);
 const props = [];
+const destructibles = [];
+const explosions = [];
+let rainbowGroup = null;
 const clock = new THREE.Clock();
 const player = { x: 0, z: 7, y: 0, yaw: 0, pitch: -0.035, speed: 5.3, bob: 0 };
 const keys = new Set();
@@ -142,7 +145,7 @@ function makeTree(x, z, size = 1, kind = 'pine') {
       branch.rotation.set(rand() * .4, rand() * Math.PI, rand() * .4);
     }
   }
-  group.userData.sway = rand() * Math.PI * 2; group.userData.baseRot = group.rotation.z; foliageGroups.push(group);
+  group.userData.sway = rand() * Math.PI * 2; group.userData.baseRot = group.rotation.z; foliageGroups.push(group); destructibles.push(group);
   return group;
 }
 const foliageGroups = [];
@@ -160,7 +163,7 @@ function makeVillage() {
   const wall = material('#c4b39b'), roof = material('#51473c', 1), wood = material('#755b43'), glass = new THREE.MeshStandardMaterial({ color: '#b7d2ca', roughness: .18, metalness: .12, emissive: '#273735', emissiveIntensity: .24 });
   const houses = [{x:-10,z:-22,s:1.05},{x:8,z:-35,s:.82},{x:-18,z:-43,s:.72}];
   houses.forEach((h, index) => {
-    const group = new THREE.Group(); group.position.set(h.x, terrainHeight(h.x,h.z), h.z); group.scale.setScalar(h.s); world.add(group);
+    const group = new THREE.Group(); group.position.set(h.x, terrainHeight(h.x,h.z), h.z); group.scale.setScalar(h.s); world.add(group); destructibles.push(group);
     addMesh(group, new THREE.BoxGeometry(5.2,3.2,4.6), wall, [0,1.6,0], null, true, true);
     const top = addMesh(group, new THREE.ConeGeometry(4.05,2.7,4), roof, [0,4.4,0], [1,.75,.72], true, true); top.rotation.y=Math.PI/4;
     for (const side of [-1,1]) {
@@ -191,7 +194,7 @@ function makeRocks() {
     if((x-24)**2/580+(z+31)**2/250<1.1) continue;
     const size=.16+rand()*.65;
     const rock=addMesh(world,new THREE.DodecahedronGeometry(size,1),material(['#766f63','#908575','#a09380'][Math.floor(rand()*3)],1,{flatShading:true}),[x,terrainHeight(x,z)+size*.42,z],[1.3,.75,.9],true,true);
-    rock.rotation.set(rand()*.4,rand()*Math.PI,rand()*.3);
+    rock.rotation.set(rand()*.4,rand()*Math.PI,rand()*.3);destructibles.push(rock);
   }
 }
 function makeMeadow() {
@@ -280,11 +283,54 @@ function burstAt(position,color='#e8ca9d',count=32){
   }
 }
 function updateParticles(dt){
-  for(let i=particles.length-1;i>=0;i--){const p=particles[i];p.age+=dt;p.mesh.position.addScaledVector(p.velocity,dt);p.velocity.y-=2.2*dt;p.mesh.material.opacity=1-p.age/p.life;p.mesh.material.transparent=true;if(p.age>=p.life){p.group.remove(p.mesh);particles.splice(i,1);}}
+  for(let i=particles.length-1;i>=0;i--){const p=particles[i];p.age+=dt;p.mesh.position.addScaledVector(p.velocity,dt);p.velocity.y-=2.2*dt;p.mesh.material.opacity=1-p.age/p.life;p.mesh.material.transparent=true;if(p.age>=p.life){p.group.remove(p.mesh);particles.splice(i,1);if(p.group.children.length===0)p.group.removeFromParent();}}
+}
+function explodeAt(position, lower=''){
+  const radius=/everything|whole village|massive|nuke|huge/.test(lower)?42:21;
+  const candidates=destructibles.slice();let destroyed=0;
+  for(const object of candidates){
+    if(!object?.parent||object.userData.destroyed)continue;
+    const point=object.getWorldPosition(new THREE.Vector3());
+    if(point.distanceTo(position)<=radius){object.userData.destroyed=true;object.visible=false;destroyed++;}
+  }
+  for(let i=props.length-1;i>=0;i--)if(props[i].userData.destroyed)props.splice(i,1);
+  const group=new THREE.Group();group.position.copy(position);generated.add(group);
+  const core=addMesh(group,new THREE.SphereGeometry(1,20,16),new THREE.MeshBasicMaterial({color:'#ff6a24',transparent:true,opacity:.95,depthWrite:false}),[0,2,0],[.1,.1,.1],false,false);
+  const glow=addMesh(group,new THREE.SphereGeometry(1,18,14),new THREE.MeshBasicMaterial({color:'#ffd36b',transparent:true,opacity:.8,depthWrite:false}),[0,2,0],[.1,.1,.1],false,false);
+  const ring=addMesh(group,new THREE.RingGeometry(.82,1,48),new THREE.MeshBasicMaterial({color:'#ffb13b',transparent:true,opacity:.9,side:THREE.DoubleSide,depthWrite:false}),[0,.12,0],null,false,false);ring.rotation.x=-Math.PI/2;
+  const smoke=addMesh(group,new THREE.SphereGeometry(1,14,10),new THREE.MeshBasicMaterial({color:'#55443d',transparent:true,opacity:.42,depthWrite:false}),[0,3.8,0],[.4,.5,.4],false,false);
+  explosions.push({group,core,glow,ring,smoke,age:0,life:1.3});
+  burstAt(new THREE.Vector3(position.x,position.y+.5,position.z),'#ff6328',44);
+  burstAt(new THREE.Vector3(position.x,position.y+.5,position.z),'#ffd064',28);
+  burstAt(new THREE.Vector3(position.x,position.y+.5,position.z),'#67554b',18);
+  return destroyed;
+}
+function updateExplosions(dt){
+  for(let i=explosions.length-1;i>=0;i--){
+    const e=explosions[i];e.age+=dt;const p=Math.min(e.age/e.life,1),flare=Math.sin(Math.min(p*2.7,1)*Math.PI*.5);
+    e.core.scale.setScalar(.1+flare*8);e.glow.scale.setScalar(.1+flare*12);e.ring.scale.setScalar(.2+p*17);e.smoke.scale.set(.4+p*7,.5+p*5,.4+p*7);
+    e.core.material.opacity=(1-p)*.95;e.glow.material.opacity=(1-p)*.68;e.ring.material.opacity=(1-p)*.9;e.smoke.material.opacity=(1-p)*.42;
+    if(e.age>=e.life){e.group.removeFromParent();for(const child of e.group.children){child.geometry.dispose();child.material.dispose();}explosions.splice(i,1);}
+  }
 }
 
 const palette={rose:'#bd6f64',red:'#c45c4d',orange:'#dc895c',yellow:'#e7c56e',gold:'#d5aa62',blue:'#6e9fb0',teal:'#71a9a0',green:'#77956c',purple:'#947da8',pink:'#d692aa',white:'#e7e2d4',black:'#30353a',silver:'#aeb9b8',golden:'#d5aa62'};
 function colorFrom(text){for(const [name,color] of Object.entries(palette))if(text.includes(name))return color;return ['#d3a87a','#9ba982','#819ea0','#bb9075','#ada1bb'][Math.floor(rand()*5)];}
+function setRainbow(enabled=true){
+  if(!enabled){if(rainbowGroup)rainbowGroup.removeFromParent();rainbowGroup=null;return;}
+  if(rainbowGroup)return;
+  rainbowGroup=new THREE.Group();scene.add(rainbowGroup);
+  const colors=['#ff3547','#ff922e','#ffe348','#62df70','#38c8e8','#4278ff','#b75cff'];
+  colors.forEach((color,index)=>{
+    const radius=22-index*.72,points=[];
+    for(let i=0;i<=48;i++){const angle=Math.PI*i/48;points.push(new THREE.Vector3(Math.cos(angle)*radius,Math.sin(angle)*radius,0));}
+    const curve=new THREE.CatmullRomCurve3(points);
+    const band=new THREE.Mesh(new THREE.TubeGeometry(curve,64,.48,8,false),new THREE.MeshBasicMaterial({color,transparent:true,opacity:.96,depthWrite:false,fog:false}));
+    band.renderOrder=10;rainbowGroup.add(band);
+  });
+  scene.background.set('#829abd');scene.fog.color.set('#829abd');scene.fog.density=.006;
+}
+function updateRainbow(){if(!rainbowGroup)return;rainbowGroup.position.set(player.x+Math.sin(player.yaw)*48,terrainHeight(player.x,player.z)+8,player.z-Math.cos(player.yaw)*48);rainbowGroup.rotation.y=-player.yaw;}
 function setTime(kind){
   timeState=kind;
   if(kind==='night'){
@@ -409,6 +455,13 @@ function addOcean(){
 }
 function interpret(text){
   const lower=text.toLowerCase();
+  if(/\b(rainbow|rainbows)\b/.test(lower)&&( /sky|skies|horizon|above|weather|make|create|add|put|show/.test(lower) || lower.includes('make the sky'))){setRainbow(true);eventCard('A rainbow appeared','A bridge of color spans the valley.');showToast('A LITTLE MAGIC, OVERHEAD');return;}
+  if(/\b(remove|clear|stop|turn off|no more)\b/.test(lower)&&/rainbow|rainbows/.test(lower)){setRainbow(false);eventCard('The rainbow fades','The sky is yours again.');showToast('SKY RESET');return;}
+  if(/\b(explode|explosion|blow ?(it|stuff|things|everything|up)|blasts?|detonate|nuke)\b/.test(lower)){
+    const forward=new THREE.Vector3(Math.sin(player.yaw)*12,0,-Math.cos(player.yaw)*12);
+    const at=new THREE.Vector3(player.x+forward.x,terrainHeight(player.x+forward.x,player.z+forward.z),player.z+forward.z);
+    const destroyed=explodeAt(at,lower);eventCard(destroyed?'The landscape recoils':'A flash across the valley',destroyed?`${destroyed} things were removed in the blast.`:'The blast rings through the hills.');showToast('BOOM');return;
+  }
   if(/\b(night|midnight|dark|stars out)\b/.test(lower)){setTime('night');eventCard('Night falls','The stars have been waiting for you.');showToast('THE WORLD IS QUIETER NOW');return;}
   if(/\b(noon|daytime|bright day|morning|sunrise|sunny day)\b/.test(lower)){setTime('day');eventCard('A brighter day','The sun climbs over the hills.');showToast('A NEW DAY, JUST LIKE THAT');return;}
   if(/\b(sunset|golden hour|dawn|sunrise)\b/.test(lower)){setTime('morning');eventCard('The light shifts','The hills turn the color of honey.');showToast('GOLDEN HOUR');return;}
@@ -435,6 +488,7 @@ function interpret(text){
 }
 function resetWorld(){
   for(const p of props)generated.remove(p);props.length=0;
+  setRainbow(false);
   if(rainGroup)rainGroup.visible=false;weatherState='golden hour';setTime('morning');setWeather('clear');
   player.x=0;player.z=7;player.yaw=0;player.pitch=-.035;player.fly=false;
   document.querySelector('#events').replaceChildren();document.querySelector('#intro').classList.remove('is-hidden');
@@ -479,7 +533,7 @@ frame=function(){
   if(water){water.position.y=waterBase+Math.sin(t*.7)*.035;water.material.opacity=.88+Math.sin(t*1.2)*.04;}
   for(const p of props){if(p.userData.rise){p.scale.lerp(new THREE.Vector3(p.userData.targetScale,p.userData.targetScale,p.userData.targetScale),1-Math.exp(-dt*3.2));if(p.scale.x>p.userData.targetScale*.97){p.scale.setScalar(p.userData.targetScale);p.userData.rise=false;}}if(p.userData.water)p.position.y+=Math.sin(t*.8)*.0008;}
   if(rainGroup?.visible){const points=rainGroup.userData.points,attr=points.geometry.attributes.position,limit=Math.hypot(player.x,player.z)+30;for(let i=0;i<attr.count;i++){let y=attr.getY(i)-dt*(rainGroup.userData.snow?1.8:12);if(y<0)y=23;attr.setY(i,y);}attr.needsUpdate=true;rainGroup.position.set(player.x,0,player.z);}
-  updateParticles(dt);drawMap();renderer.render(scene,camera);
+  updateRainbow();updateExplosions(dt);updateParticles(dt);drawMap();renderer.render(scene,camera);
 };
 
 frame();

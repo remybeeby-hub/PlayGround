@@ -29,9 +29,10 @@
         <div class="divider"></div>
         <div class="section-title">ESSENCE ARRAY <button class="subtle-link" id="essenceInfo">DETAILS ↗</button></div>
         <div class="essence-grid">
-          <button class="essence-slot empty" data-essence="slot1"><span class="plus">＋</span><span><b>EMPTY SLOT</b><small>AWAITING ESSENCE</small></span></button>
-          <button class="essence-slot empty" data-essence="slot2"><span class="plus">＋</span><span><b>EMPTY SLOT</b><small>AWAITING ESSENCE</small></span></button>
-          <button class="essence-slot empty" id="emptySlot"><span class="plus">＋</span><span><b>EMPTY SLOT</b><small>AWAITING ESSENCE</small></span></button>
+          <button class="essence-slot empty" data-slot="1" data-essence="slot1"><span class="plus">＋</span><span><b>EMPTY SLOT</b><small>AWAITING ESSENCE</small></span></button>
+          <button class="essence-slot empty" data-slot="2" data-essence="slot2"><span class="plus">＋</span><span><b>EMPTY SLOT</b><small>AWAITING ESSENCE</small></span></button>
+          <button class="essence-slot empty" id="emptySlot" data-slot="3" data-essence="slot3"><span class="plus">＋</span><span><b>EMPTY SLOT</b><small>AWAITING ESSENCE</small></span></button>
+          <button class="essence-slot empty" data-slot="4" data-essence="slot4"><span class="plus">＋</span><span><b>CONFLUENCE SLOT</b><small>SECRET ESSENCE</small></span></button>
         </div>
         <div class="passive-note"><span>✧</span> Essence abilities unlock as you grow.</div>
         <div class="journal-mini"><div class="section-title">FIELD NOTES <span class="note-date">DAY 04</span></div><p>“A rift opened where the air tasted of lightning. I really need to stop being curious.”</p><div class="note-author">— J. ASANO</div></div>
@@ -65,6 +66,11 @@
     </section>
     <footer class="footer"><span>REALMWALKER CHRONICLES <i>•</i> GREENSTONE WILDS</span><span>EARLY ACCESS <b>0.4.2</b></span><span>⟡ A STORY BETWEEN WORLDS</span></footer>
   </main>
+  <div class="test-console hidden" id="testConsole" aria-label="Preview test console">
+    <div class="test-console-head"><b>PREVIEW TEST CONSOLE</b><span>REMOVED AT FINALISATION</span><button id="testConsoleClose" type="button">×</button></div>
+    <div class="test-console-output" id="testConsoleOutput"></div>
+    <form id="testConsoleForm"><span>&gt;</span><input id="testConsoleInput" autocomplete="off" spellcheck="false" placeholder="Type help" /></form>
+  </div>
   <div class="modal-backdrop hidden" id="modalBackdrop"><section class="modal" id="modal"><button class="modal-close" id="modalClose">×</button><div id="modalContent"></div></section></div>
   <div class="chat-panel hidden" id="chatPanel"><div class="chat-head"><div class="npc-portrait npc-green" id="chatAvatar">M</div><div><b id="chatName">MARIA</b><small id="chatRole">GREENSTONE GUARD • LOCAL</small></div><button id="chatClose">×</button></div><div class="chat-log" id="chatLog"></div><div class="chat-options" id="chatOptions"></div><form id="chatForm"><input id="chatInput" placeholder="Ask them something…" autocomplete="off"><button>↑</button></form><div class="chat-foot">✧ CONVERSATION IS REMEMBERED</div></div>
   <script src="game.js"></script>

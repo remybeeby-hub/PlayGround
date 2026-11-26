@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#10131c">
+  <title>SHAPEHERO — Infinite Foundry</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="#" aria-label="Shapehero home"><span class="brand-mark"><i></i><i></i><i></i></span><span>SHAPE<span class="brand-light">HERO</span></span></a>
+      <div class="header-center"><span class="live-dot"></span><span>FOUNDRY ONLINE</span><span class="header-divider"></span><span id="clock">CYCLE 01</span></div>
+      <div class="header-actions"><button class="icon-btn" id="soundBtn" title="Toggle sound" aria-label="Toggle sound">♫</button><button class="icon-btn" id="pauseBtn" title="Pause simulation" aria-label="Pause simulation">Ⅱ</button><button class="help-btn" id="helpBtn">HOW TO PLAY <span>↗</span></button></div>
+    </header>
+    <main class="layout">
+      <section class="main-column">
+        <section class="stats-row" aria-label="Factory resources">
+          <article class="stat-card credits"><div class="stat-label"><span class="stat-symbol">◈</span> CREDITS <span class="tiny-tag">LIVE</span></div><div class="stat-value" id="credits">120</div><div class="stat-foot"><span class="positive" id="income">+0 / sec</span><span class="stat-foot-note">lifetime <b id="lifetime">0</b></span></div></article>
+          <article class="stat-card units"><div class="stat-label"><span class="stat-symbol">⬡</span> SHAPE UNITS</div><div class="stat-value" id="unitCount">0</div><div class="stat-foot"><span class="positive" id="unitRate">+0 / sec</span><span class="stat-foot-note">in circulation</span></div></article>
+          <article class="stat-card rank"><div class="stat-label"><span class="stat-symbol">✳</span> FOUNDRY RANK</div><div class="stat-value rank-value"><span id="rank">01</span><small id="rankName">ROOKIE</small></div><div class="rank-progress"><div id="rankProgress"></div></div></article>
+        </section>
+        <section class="factory-panel">
+          <div class="panel-head"><div><div class="eyebrow">YOUR WORKSHOP <span class="online-pill"><i></i> RUNNING</span></div><h1>Infinite Foundry</h1></div><div class="panel-head-right"><span class="board-coords" id="boardSize">09 × 07 GRID</span><button class="expand-btn" id="expandBtn" title="Expand the foundry">＋ EXPAND <span id="expandCost">240</span></button></div></div>
+          <div class="factory-stage"><canvas id="factoryCanvas" aria-label="Factory board. Select a structure, then click an empty tile to place it."></canvas><div class="board-overlay"><div class="objective"><span class="objective-star">✦</span><div><small>CURRENT DIRECTIVE</small><b id="directive">Build your first Cutter</b></div></div><div class="zoom-controls"><button id="zoomOut" aria-label="Zoom out">−</button><span id="zoomLabel">100%</span><button id="zoomIn" aria-label="Zoom in">＋</button></div></div><div class="toast" id="toast"></div></div>
+          <div class="board-legend"><span><i class="legend-dot dot-cyan"></i> PRODUCTION</span><span><i class="legend-dot dot-violet"></i> RESEARCH</span><span><i class="legend-dot dot-gold"></i> BOOSTED</span><span class="legend-hint"><span class="keycap">CLICK</span> PLACE STRUCTURE <span class="keycap">CLICK</span> INSPECT</span></div>
+        </section>
+        <section class="build-section"><div class="section-title"><div><span class="eyebrow">EXPAND YOUR EMPIRE</span><h2>Build structures</h2></div><span class="build-count" id="buildCount">01 / 10 UNLOCKED</span></div><div class="build-grid" id="buildGrid"></div></section>
+        <section class="roster-section"><div class="section-title compact"><div><span class="eyebrow">A GROWING WORKFORCE</span><h2>Unit catalog <span id="rosterCount">01 / 12</span></h2></div><span class="roster-total"><i class="live-dot"></i> DISCOVER AS YOU GROW</span></div><div class="roster-grid" id="rosterGrid"></div></section>
+      </section>
+      <aside class="side-column">
+        <section class="inspector card-panel"><div class="side-title"><div><span class="eyebrow">FOUNDRY MANAGEMENT</span><h2>Overview</h2></div><button class="more-btn" id="menuBtn" aria-label="More options">···</button></div><div class="foundry-summary"><div class="summary-icon">✳</div><div><b id="foundryTitle">Little Big Factory</b><span id="foundrySubtitle">A shape empire in the making</span></div><span class="level-badge">LVL <b id="level">1</b></span></div><div class="summary-stats"><div><small>STRUCTURES</small><b id="structureCount">1</b></div><div><small>UPTIME</small><b id="uptime">00:00</b></div><div><small>BEST RUN</small><b id="bestRun">0</b></div></div><div class="selected-card" id="selectedCard"><div class="empty-inspector"><span>▣</span><b>Select a structure</b><p>Choose a building on your foundry to inspect and upgrade it.</p></div></div><button class="upgrade-all" id="upgradeAll">⬆ &nbsp; UPGRADE ALL <span id="upgradeAllCost">—</span></button></section>
+        <section class="milestone-panel card-panel"><div class="side-title"><div><span class="eyebrow">THE LONG GAME</span><h2>Next milestone</h2></div><span class="milestone-icon">◉</span></div><div class="milestone-name" id="milestoneName">First Assembly</div><div class="milestone-desc" id="milestoneDesc">Reach 500 lifetime credits to unlock the Press.</div><div class="milestone-progress"><div id="milestoneProgress"></div></div><div class="milestone-footer"><span id="milestoneCurrent">120 / 500</span><span id="milestoneReward">REWARD: PRESS</span></div></section>
+        <section class="activity-panel card-panel"><div class="side-title"><div><span class="eyebrow">FRESH OFF THE LINE</span><h2>Activity</h2></div><span class="activity-live"><i></i> LIVE</span></div><div class="activity-list" id="activityList"></div></section>
+        <footer class="side-footer"><span>SHAPEHERO <b>∞</b> FOUNDRY</span><button id="resetBtn">RESET FACTORY</button></footer>
+      </aside>
+    </main>
+  </div>
+  <dialog id="helpDialog"><div class="dialog-inner"><button class="dialog-close" id="closeHelp">×</button><span class="eyebrow">THE FACTORY NEVER SLEEPS</span><h2>Build a bigger<br><span>shape empire.</span></h2><p>Pick a structure from the build menu, then click an empty tile on your foundry. Each structure creates shape units and earns credits automatically.</p><div class="help-steps"><div><b>01</b><span><strong>Build</strong>Place structures anywhere on your grid.</span></div><div><b>02</b><span><strong>Upgrade</strong>Select a structure to boost its output.</span></div><div><b>03</b><span><strong>Grow</strong>Hit milestones to unlock more buildings and units. Expand your grid and keep going forever.</span></div></div><button class="primary-btn" id="gotIt">LET'S BUILD <span>→</span></button></div></dialog>
+  <div class="mobile-hint">Scroll to explore your factory empire</div>
+  <script src="game.js"></script>
+</body>
+</html>

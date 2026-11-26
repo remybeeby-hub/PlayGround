@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0a0c11">
+  <title>World of Pallimustus — A Realmwalker Adventure</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="game-shell">
+    <header class="topbar">
+      <div class="brand"><div class="brand-mark">✦</div><div><div class="brand-name">PALLIMUSTUS <span>REALMWALKER</span></div><div class="brand-sub">GREENSTONE CITY &amp; THE ASTRAL KINGDOM</div></div></div>
+      <div class="world-state"><span class="live-dot"></span><span id="zoneName">GREENSTONE WILDS</span><i></i><span id="weather">ASHFALL • DUSK</span></div>
+      <div class="top-actions"><button class="icon-btn" id="journalBtn" title="Journal">☷<span>JOURNAL</span></button><button class="icon-btn" id="mapBtn" title="Map">⌖<span>MAP</span></button><button class="icon-btn" id="soundBtn" title="Sound">♫</button></div>
+    </header>
+    <section class="game-layout">
+      <aside class="side-panel left-panel">
+        <div class="panel-kicker">YOUR JOURNEY <span class="tiny-diamond">◆</span></div>
+        <div class="profile"><div class="avatar-frame"><div class="avatar">J</div><span class="rank-dot">12</span></div><div><div class="hero-name">Jason Asano</div><div class="hero-class">OUTWORLDER <span>•</span> BRONZE-RANK</div><button class="dots">•••</button></div>
+        <div class="level-progress"><div class="level-line"><span>EXPERIENCE</span><span id="xpLabel">2,460 / 3,200</span></div><div class="xp-track"><div id="xpFill"></div></div></div>
+        <div class="section-title">ACTIVE QUEST <span class="quest-count">01</span></div>
+        <div class="quest-card"><div class="quest-icon">⚑</div><div><div class="quest-title">A Tear in the Veil</div><div class="quest-description" id="questDescription">Find the astral rift among Greenstone’s eastern ruins.</div></div><div class="quest-chevron">›</div></div>
+        <div class="objective" id="objective"><span class="objective-ring"></span><span>Locate the astral rift</span></div>
+        <div class="objective muted" id="objective2"><span class="objective-ring"></span><span>Claim the rift essence</span></div>
+        <div class="divider"></div>
+        <div class="section-title">ESSENCE ARRAY <button class="subtle-link" id="essenceInfo">DETAILS ↗</button></div>
+        <div class="essence-grid">
+          <button class="essence-slot equipped" data-essence="shadow"><span class="essence-symbol shadow-symbol">◈</span><span><b>SHADOW</b><small>ASSASSIN • RARE</small></span><i>01</i></button>
+          <button class="essence-slot equipped" data-essence="blood"><span class="essence-symbol blood-symbol">✹</span><span><b>BLOOD</b><small>VAMPIRE • RARE</small></span><i>02</i></button>
+          <button class="essence-slot empty" id="emptySlot"><span class="plus">＋</span><span><b>EMPTY SLOT</b><small>AWAITING ESSENCE</small></span></button>
+        </div>
+        <div class="passive-note"><span>✧</span> Essence abilities unlock as you grow.</div>
+        <div class="journal-mini"><div class="section-title">FIELD NOTES <span class="note-date">DAY 04</span></div><p>“A rift opened where the air tasted of lightning. I really need to stop being curious.”</p><div class="note-author">— J. ASANO</div></div>
+      </aside>
+      <section class="world-wrap">
+        <div class="scene" id="scene">
+          <canvas id="gameCanvas" aria-label="Playable Greenstone wilderness"></canvas>
+          <div class="scene-vignette"></div>
+          <div class="scene-topline"><div class="location-label"><span class="location-icon">⌖</span><div><b id="locationTitle">THE SUNDERED TRAIL</b><small id="locationSub">GREENSTONE OUTSKIRTS • 18:42</small></div></div><div class="scene-weather"><span>☁</span> 12° <i></i> VISIBILITY: LOW</div></div>
+          <div class="scene-toast" id="toast"></div>
+          <div class="interact-hint" id="interactHint"><kbd>E</kbd> <span>INTERACT</span></div>
+          <div class="enemy-hud hidden" id="enemyHud"><div class="enemy-name">RIFT-TOUCHED HOUND <span>LV. 8</span></div><div class="enemy-health"><i id="enemyHealth"></i></div></div>
+          <div class="scene-bottom"><div class="compass"><div class="compass-inner"><span class="north">N</span><span class="compass-needle">▲</span><small>W</small><small>E</small></div><div class="coord">X: <span id="coordX">24</span> &nbsp; Y: <span id="coordY">61</span></div></div><div class="control-tip"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> MOVE <i>•</i> <kbd>SPACE</kbd> ATTACK <i>•</i> <kbd>E</kbd> INTERACT</div><div class="mini-map"><canvas id="mapCanvas" width="124" height="124"></canvas><span class="map-label">FIELD MAP <b>↗</b></span></div></div>
+          <div class="scene-title-card" id="sceneTitleCard"><span class="eyebrow">A REALMWALKER'S JOURNAL • ENTRY 04</span><h1>Shadows over<br><em>Greenstone.</em></h1><p>The wilds are quiet. That usually means something is about to eat me.</p><button id="beginBtn" class="begin-btn">CONTINUE JOURNEY <span>→</span></button></div>
+          <div class="combat-flash" id="combatFlash"></div>
+          <div class="mobile-controls"><button id="mobileUp">▲</button><button id="mobileLeft">◀</button><button id="mobileDown">▼</button><button id="mobileRight">▶</button><button id="mobileAttack">⚔</button><button id="mobileInteract">E</button></div>
+        </div>
+        <div class="actionbar"><div class="vitals"><div class="vital-row"><span class="vital-icon health-icon">✦</span><div class="vital-track"><div id="healthFill" class="health-fill"></div><span id="healthText">184 / 220</span></div></div><div class="vital-row"><span class="vital-icon mana-icon">✧</span><div class="vital-track"><div id="manaFill" class="mana-fill"></div><span id="manaText">96 / 120</span></div></div></div><div class="skills"><button class="skill" data-skill="1"><span class="skill-glyph">◈</span><kbd>1</kbd><small>SHADOW STEP</small></button><button class="skill" data-skill="2"><span class="skill-glyph blood">✹</span><kbd>2</kbd><small>BLOOD BOLT</small></button><button class="skill" data-skill="3"><span class="skill-glyph gold">✧</span><kbd>3</kbd><small>VEIL STRIKE</small></button><button class="skill disabled" data-skill="4"><span class="skill-glyph">✣</span><kbd>4</kbd><small>LOCKED</small></button></div><div class="quick-items"><button class="potion" id="potionBtn"><span>⚗</span><b>2</b></button><div><small>HEALTH TONIC</small><small>Q TO USE</small></div></div><div class="gold-count"><span>◉</span><div><b id="goldCount">1,240</b><small>GOLD</small></div></div></div>
+      </section>
+      <aside class="side-panel right-panel">
+        <div class="right-head"><div class="panel-kicker">NEARBY <span class="online-count">● 2</span></div><button class="dots">•••</button></div>
+        <div class="nearby-item"><div class="npc-portrait npc-green">M</div><div class="npc-copy"><b>MARIA</b><small>GREENSTONE CITY GUARD</small><span><i></i> AVAILABLE</span></div><button class="chat-btn" data-npc="Maria">CHAT</button></div>
+        <div class="nearby-item"><div class="npc-portrait npc-silver">R</div><div class="npc-copy"><b>ROCKY</b><small>MAGIC GORILLA • COMPANION</small><span><i></i> AVAILABLE</span></div><button class="chat-btn" data-npc="Rocky">CHAT</button></div>
+        <div class="divider"></div>
+        <div class="section-title">RECENT DISCOVERIES <button class="subtle-link" id="lootBtn">ALL ↗</button></div>
+        <div class="loot-list" id="lootList"><div class="loot-row"><span class="loot-emblem rare">✧</span><div><b>Duskwalker Mantle</b><small>RARE • ARMOR</small></div><span class="loot-time">2m</span></div><div class="loot-row"><span class="loot-emblem common">◈</span><div><b>Wolfsbane Charm</b><small>UNCOMMON • TRINKET</small></div><span class="loot-time">8m</span></div><div class="loot-row"><span class="loot-emblem essence">✹</span><div><b>Faint Blood Essence</b><small>ESSENCE • COMMON</small></div><span class="loot-time">12m</span></div></div>
+        <div class="divider"></div>
+        <div class="rift-card"><div class="rift-top"><span>ASTRAL ACTIVITY</span><span class="rift-live"><i></i> DETECTED</span></div><div class="rift-visual"><div class="rift-ring ring-one"></div><div class="rift-ring ring-two"></div><div class="rift-core">✧</div><span class="rift-star s1">✦</span><span class="rift-star s2">·</span><span class="rift-star s3">✧</span></div><b class="rift-title">Anomaly signature</b><p>Unstable energy is bleeding through nearby. Source unknown.</p><div class="rift-distance"><span>DISTANCE</span><b id="riftDistance">~340m</b></div></div>
+        <div class="chat-ambient"><span class="ambient-dot"></span><span id="ambientText">The wind carries a distant howl.</span></div>
+      </aside>
+    </section>
+    <footer class="footer"><span>REALMWALKER CHRONICLES <i>•</i> GREENSTONE WILDS</span><span>EARLY ACCESS <b>0.4.2</b></span><span>⟡ A STORY BETWEEN WORLDS</span></footer>
+  </main>
+  <div class="modal-backdrop hidden" id="modalBackdrop"><section class="modal" id="modal"><button class="modal-close" id="modalClose">×</button><div id="modalContent"></div></section></div>
+  <div class="chat-panel hidden" id="chatPanel"><div class="chat-head"><div class="npc-portrait npc-green" id="chatAvatar">M</div><div><b id="chatName">MARIA</b><small id="chatRole">GREENSTONE GUARD • LOCAL</small></div><button id="chatClose">×</button></div><div class="chat-log" id="chatLog"></div><div class="chat-options" id="chatOptions"></div><form id="chatForm"><input id="chatInput" placeholder="Ask them something…" autocomplete="off"><button>↑</button></form><div class="chat-foot">✧ CONVERSATION IS REMEMBERED</div></div>
+  <script src="game.js"></script>
+</body>
+</html>

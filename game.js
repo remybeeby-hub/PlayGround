@@ -8,6 +8,10 @@
   const $$ = (s) => [...document.querySelectorAll(s)];
   const rand = (a,b) => a + Math.random()*(b-a);
   const clamp = (n,a,b) => Math.max(a,Math.min(b,n));
+  const WORLD = 100;
+  const wrap = (v) => clamp(v,0,WORLD);
+  const wrapDelta = (v) => v;
+  const dist = (a,b) => Math.hypot(wrapDelta(a.x-b.x), wrapDelta(a.y-b.y));
   const game = {
     started:false, zone:'wilds', player:{x:22,y:63,hp:184,maxHp:220,mana:96,maxMana:120,xp:2460,gold:1240,potions:2,dir:1,attack:0,walk:0,level:12},
     quest:{riftFound:false,riftDone:false,essence:false}, essences:{shadow:false,blood:false,veil:false}, keys:{}, pointer:null, toastTimer:null,
@@ -46,57 +50,78 @@
   for(let i=0;i<140;i++){mapProps.push({x:sr()*100,y:sr()*100,type:sr()<.78?'tree':'rock',size:5+sr()*11,variant:sr()})}
   // Keep the spawn clearing around the trailhead safe.
   mapProps = mapProps.filter(o=>Math.hypot(o.x-22,o.y-63)>7 && Math.hypot(o.x-29,o.y-49)>5 && Math.hypot(o.x-33,o.y-50)>5);
-  function isBlocked(x,y){for(const o of mapProps){const r=o.type==='tree'?o.size*.35:o.size*.45;if(Math.hypot(x-o.x,y-o.y)<r+1.8)return true}for(const l of landmarks){if(['ruins','dock','camp','shrine','crystal'].includes(l.type)){if(Math.hypot(x-l.x,y-l.y)<3.2)return true}}if(game.scene==='wilds'){if(Math.hypot(x-game.rift.x,y-game.rift.y)<4.5)return true}return false}
-  function findClearSpot(x,y){if(!isBlocked(x,y))return {x,y};for(let r=2;r<20;r+=1){for(let a=0;a<16;a++){const ang=a/16*Math.PI*2,nx=clamp(x+Math.cos(ang)*r,3,97),ny=clamp(y+Math.sin(ang)*r,4,96);if(!isBlocked(nx,ny))return {x:nx,y:ny}}}return {x,y}}
+  function isBlocked(x,y){for(const o of mapProps){const r=o.type==='tree'?o.size*.35:o.size*.45;if(Math.hypot(wrapDelta(x-o.x),wrapDelta(y-o.y))<r+1.8)return true}for(const l of landmarks){if(['ruins','dock','camp','shrine','crystal'].includes(l.type)){if(Math.hypot(wrapDelta(x-l.x),wrapDelta(y-l.y))<3.2)return true}}if(game.scene==='wilds'){if(Math.hypot(wrapDelta(x-game.rift.x),wrapDelta(y-game.rift.y))<4.5)return true}return false}
+  function findClearSpot(x,y){x=wrap(x);y=wrap(y);if(!isBlocked(x,y))return {x,y};for(let r=2;r<24;r+=1){for(let a=0;a<16;a++){const ang=a/16*Math.PI*2,nx=wrap(x+Math.cos(ang)*r),ny=wrap(y+Math.sin(ang)*r);if(!isBlocked(nx,ny))return {x:nx,y:ny}}}return {x,y}}
   Object.assign(game.player, findClearSpot(game.player.x, game.player.y));
   function resize(){const r=canvas.getBoundingClientRect(),d=Math.min(devicePixelRatio||1,2);canvas.width=Math.round(r.width*d);canvas.height=Math.round(r.height*d);ctx.setTransform(d,0,0,d,0,0);draw()}
   function point(x,y,w,h){const scale=Math.min(w/75,h/73);return {x:w/2+(x-game.player.x)*scale,y:h*.56+(y-game.player.y)*scale,s:scale}}
+  const noiseCanvas=document.createElement('canvas');noiseCanvas.width=256;noiseCanvas.height=256;const nctx=noiseCanvas.getContext('2d');const nimg=nctx.createImageData(256,256);for(let i=0;i<nimg.data.length;i+=4){const v=Math.random()*255;nimg.data[i]=v;nimg.data[i+1]=v;nimg.data[i+2]=v;nimg.data[i+3]=18+Math.random()*28}nctx.putImageData(nimg,0,0);
   function ground(w,h){
-    const sky=ctx.createLinearGradient(0,0,0,h);sky.addColorStop(0,'#1b2526');sky.addColorStop(.4,'#29312b');sky.addColorStop(1,'#34372d');ctx.fillStyle=sky;ctx.fillRect(0,0,w,h);
-    // hazy mountain silhouettes
-    ctx.fillStyle='#182224';ctx.beginPath();ctx.moveTo(0,h*.32);for(let x=0;x<=w+30;x+=30)ctx.lineTo(x,h*.24+Math.sin(x*.021)*14+Math.cos(x*.037)*8);ctx.lineTo(w,h*.55);ctx.lineTo(0,h*.55);ctx.fill();
-    ctx.fillStyle='#252d27';ctx.beginPath();ctx.moveTo(0,h*.43);for(let x=0;x<=w+20;x+=20)ctx.lineTo(x,h*.34+Math.sin(x*.018+2)*12+Math.cos(x*.045)*5);ctx.lineTo(w,h*.62);ctx.lineTo(0,h*.62);ctx.fill();
-    // forest floor
-    ctx.fillStyle='#35372d';ctx.fillRect(0,h*.43,w,h*.57);
-    for(let i=0;i<80;i++){let x=(i*83+11)%w,y=h*.44+((i*137)%Math.max(1,h*.55));ctx.fillStyle=i%3?'#51503a55':'#88805726';ctx.fillRect(x,y,rand(1,3),rand(1,2));}
-    // winding worn trail toward the rift
-    ctx.beginPath();ctx.moveTo(w*.65,h*1.1);ctx.bezierCurveTo(w*.72,h*.83,w*.45,h*.74,w*.57,h*.58);ctx.bezierCurveTo(w*.74,h*.39,w*.56,h*.31,w*.70,h*.03);ctx.lineWidth=Math.max(26,w*.075);ctx.strokeStyle='#514b3c';ctx.stroke();ctx.lineWidth=Math.max(17,w*.05);ctx.strokeStyle='#69604b';ctx.stroke();
-    ctx.beginPath();ctx.moveTo(w*.65,h*1.1);ctx.bezierCurveTo(w*.72,h*.83,w*.45,h*.74,w*.57,h*.58);ctx.bezierCurveTo(w*.74,h*.39,w*.56,h*.31,w*.70,h*.03);ctx.lineWidth=1;ctx.strokeStyle='#a1926c33';ctx.setLineDash([3,8]);ctx.stroke();ctx.setLineDash([]);
+    const sky=ctx.createLinearGradient(0,0,0,h*.55);sky.addColorStop(0,'#5b6d78');sky.addColorStop(.22,'#8a9090');sky.addColorStop(.42,'#766f63');sky.addColorStop(.55,'#4d4b40');ctx.fillStyle=sky;ctx.fillRect(0,0,w,h);
+    const sun=ctx.createRadialGradient(w*.72,h*.28,10,w*.72,h*.28,w*.45);sun.addColorStop(0,'rgba(255,240,210,.22)');sun.addColorStop(.35,'rgba(255,210,150,.08)');sun.addColorStop(1,'rgba(255,200,140,0)');ctx.fillStyle=sun;ctx.fillRect(0,0,w,h);
+    ctx.fillStyle='#2a3430';ctx.beginPath();ctx.moveTo(0,h*.35);for(let x=0;x<=w+40;x+=40)ctx.lineTo(x,h*.24+Math.sin(x*.018)*18+Math.cos(x*.031)*10);ctx.lineTo(w,h*.56);ctx.lineTo(0,h*.56);ctx.fill();
+    ctx.fillStyle='#334038';ctx.beginPath();ctx.moveTo(0,h*.43);for(let x=0;x<=w+30;x+=30)ctx.lineTo(x,h*.34+Math.sin(x*.016+1.8)*14+Math.cos(x*.04)*6);ctx.lineTo(w,h*.64);ctx.lineTo(0,h*.64);ctx.fill();
+    const earth=ctx.createLinearGradient(0,h*.42,0,h);earth.addColorStop(0,'#4a4a39');earth.addColorStop(.3,'#3f4335');earth.addColorStop(1,'#2f3328');ctx.fillStyle=earth;ctx.fillRect(0,h*.43,w,h*.57);
+    for(let i=0;i<180;i++){const x=(i*97)%w,y=h*.44+((i*53)%Math.max(1,h*.56));ctx.fillStyle=i%4===0?'rgba(95,110,72,.12)':i%4===1?'rgba(60,55,40,.14)':'rgba(125,120,90,.06)';ctx.fillRect(x,y,(i%5)+1,(i%3)+1)}
+    ctx.save();ctx.globalAlpha=.35;ctx.drawImage(noiseCanvas,0,h*.43,w,h*.57);ctx.restore();
+    // trail
+    ctx.lineCap='round';ctx.beginPath();ctx.moveTo(w*.65,h*1.1);ctx.bezierCurveTo(w*.72,h*.83,w*.45,h*.74,w*.57,h*.58);ctx.bezierCurveTo(w*.74,h*.39,w*.56,h*.31,w*.70,h*.03);ctx.lineWidth=Math.max(30,w*.085);ctx.strokeStyle='rgba(72,63,48,.95)';ctx.stroke();
+    ctx.beginPath();ctx.moveTo(w*.65,h*1.1);ctx.bezierCurveTo(w*.72,h*.83,w*.45,h*.74,w*.57,h*.58);ctx.bezierCurveTo(w*.74,h*.39,w*.56,h*.31,w*.70,h*.03);ctx.lineWidth=Math.max(18,w*.052);ctx.strokeStyle='rgba(110,98,74,.95)';ctx.stroke();
+    ctx.beginPath();ctx.moveTo(w*.65,h*1.1);ctx.bezierCurveTo(w*.72,h*.83,w*.45,h*.74,w*.57,h*.58);ctx.bezierCurveTo(w*.74,h*.39,w*.56,h*.31,w*.70,h*.03);ctx.lineWidth=Math.max(8,w*.02);ctx.strokeStyle='rgba(142,128,98,.35)';ctx.stroke();
     const region=getRegion();
-    if(region.id==='ashfen'){ctx.fillStyle='#38403344';ctx.fillRect(0,h*.45,w,h*.55);for(let i=0;i<8;i++){ctx.fillStyle='#7a8a6a22';ctx.fillRect((i*97)%w,h*.62+(i%3)*18,w*.12,2)}}
-    if(region.id==='coast'){ctx.fillStyle='#35505f33';ctx.fillRect(0,0,w,h*.45);ctx.fillStyle='#6a8ea022';for(let i=0;i<6;i++)ctx.fillRect(0,h*.42+i*9,w,1)}
-    if(region.id==='oldwoods'){ctx.fillStyle='#1d332133';ctx.fillRect(0,0,w,h)}
-    if(region.id==='ridge'){ctx.fillStyle='#4a463d22';ctx.fillRect(0,0,w,h)}
-    if(region.id==='ruins'){ctx.fillStyle='#4a3f3322';ctx.fillRect(0,0,w,h)}
+    if(region.id==='ashfen'){ctx.fillStyle='rgba(45,58,42,.28)';ctx.fillRect(0,h*.45,w,h*.55);for(let i=0;i<10;i++){ctx.fillStyle='rgba(120,140,100,.08)';ctx.fillRect((i*97)%w,h*.62+(i%3)*18,w*.12,2)}}
+    if(region.id==='coast'){ctx.fillStyle='rgba(55,90,110,.22)';ctx.fillRect(0,0,w,h*.45);for(let i=0;i<8;i++){ctx.fillStyle='rgba(170,210,230,.06)';ctx.fillRect(0,h*.42+i*8,w,1)}}
+    if(region.id==='oldwoods'){ctx.fillStyle='rgba(20,45,25,.2)';ctx.fillRect(0,0,w,h)}
+    if(region.id==='ridge'){ctx.fillStyle='rgba(85,75,60,.12)';ctx.fillRect(0,0,w,h)}
+    if(region.id==='ruins'){ctx.fillStyle='rgba(80,60,45,.14)';ctx.fillRect(0,0,w,h)}
   }
   function tree(x,y,size,variant){
     const p=point(x,y,canvas.clientWidth,canvas.clientHeight),s=p.s,xx=p.x,yy=p.y,scale=clamp(s/9,.45,1.8),z=size*scale;
-    if(xx<-50||xx>canvas.clientWidth+50||yy<-100||yy>canvas.clientHeight+30)return;
-    ctx.fillStyle='#11161466';ctx.beginPath();ctx.ellipse(xx,yy+z*.2,z*.9,z*.28,0,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle='#302a20';ctx.fillRect(xx-z*.13,yy-z*.55,z*.26,z*.65);
-    const colors=variant<.33?['#192a26','#263a30','#364333']:variant<.66?['#1b2725','#26312c','#414235']:['#1a2926','#2c3930','#424735'];
-    for(let j=0;j<3;j++){ctx.beginPath();ctx.moveTo(xx,yy-z*(1.9-j*.42));ctx.lineTo(xx-z*(.8-j*.16),yy-z*(.45-j*.05));ctx.lineTo(xx+z*(.8-j*.16),yy-z*(.45-j*.05));ctx.closePath();ctx.fillStyle=colors[j];ctx.fill();}
-    ctx.strokeStyle='#a58c5633';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(xx,yy-z*1.35);ctx.lineTo(xx,yy-z*.45);ctx.stroke();
+    if(xx<-60||xx>canvas.clientWidth+60||yy<-120||yy>canvas.clientHeight+40)return;
+    ctx.save();
+    ctx.fillStyle='rgba(0,0,0,.22)';ctx.beginPath();ctx.ellipse(xx,yy+z*.18,z*1.05,z*.32,0,0,Math.PI*2);ctx.fill();
+    const trunk=ctx.createLinearGradient(xx-z*.2,0,xx+z*.2,0);trunk.addColorStop(0,'#2a2118');trunk.addColorStop(.35,'#5a4a36');trunk.addColorStop(.7,'#3b3124');trunk.addColorStop(1,'#241c14');
+    ctx.fillStyle=trunk;ctx.beginPath();ctx.moveTo(xx-z*.18,yy+z*.1);ctx.quadraticCurveTo(xx-z*.22,yy-z*.25,xx-z*.12,yy-z*.75);ctx.lineTo(xx+z*.12,yy-z*.75);ctx.quadraticCurveTo(xx+z*.22,yy-z*.25,xx+z*.18,yy+z*.1);ctx.closePath();ctx.fill();
+    const leafBase=variant<.33?['#20361f','#355a2f','#5a7a46']:variant<.66?['#1f3324','#2f5134','#587246']:['#24361e','#3a5a2b','#6a8444'];
+    for(let j=0;j<5;j++){const t=j/4,r=z*(.95-j*.12),cy=yy-z*(.75+j*.22);const g=ctx.createRadialGradient(xx-r*.2,cy-r*.3, r*.1, xx,cy,r);g.addColorStop(0,leafBase[2]);g.addColorStop(.55,leafBase[1]);g.addColorStop(1,leafBase[0]);ctx.fillStyle=g;ctx.beginPath();ctx.ellipse(xx,cy,r,r*.62,0,0,Math.PI*2);ctx.fill();}
+    ctx.globalAlpha=.12;ctx.fillStyle='#d8e6c0';for(let i=0;i<6;i++){ctx.beginPath();ctx.ellipse(xx-z*.25+i*z*.1,yy-z*(1.1-i*.08),z*.12,z*.05,-.4,0,Math.PI*2);ctx.fill()}
+    ctx.restore();
   }
-  function rock(x,y,size){const p=point(x,y,canvas.clientWidth,canvas.clientHeight),z=size*clamp(p.s/9,.45,1.6);if(p.x<-30||p.x>canvas.clientWidth+30||p.y<-30||p.y>canvas.clientHeight+30)return;ctx.fillStyle='#17191877';ctx.beginPath();ctx.ellipse(p.x,p.y+z*.2,z*.9,z*.3,0,0,Math.PI*2);ctx.fill();ctx.fillStyle='#55574d';ctx.beginPath();ctx.moveTo(p.x-z,p.y);ctx.lineTo(p.x-z*.52,p.y-z*.64);ctx.lineTo(p.x+z*.2,p.y-z*.82);ctx.lineTo(p.x+z,p.y-z*.2);ctx.lineTo(p.x+z*.65,p.y+z*.17);ctx.closePath();ctx.fill();ctx.fillStyle='#858371';ctx.beginPath();ctx.moveTo(p.x-z*.52,p.y-z*.64);ctx.lineTo(p.x+z*.2,p.y-z*.82);ctx.lineTo(p.x+z*.45,p.y-z*.19);ctx.lineTo(p.x-z*.34,p.y-z*.19);ctx.closePath();ctx.fill()}
-  function drawPerson(x,y,kind,scale=1){const p=point(x,y,canvas.clientWidth,canvas.clientHeight),z=clamp(p.s/9,.6,1.45)*scale,xx=p.x,yy=p.y;if(xx<-40||xx>canvas.clientWidth+40||yy<-50||yy>canvas.clientHeight+30)return;
-    ctx.fillStyle='#11131288';ctx.beginPath();ctx.ellipse(xx,yy+3*z,11*z,4*z,0,0,Math.PI*2);ctx.fill();
+  function rock(x,y,size){const p=point(x,y,canvas.clientWidth,canvas.clientHeight),z=size*clamp(p.s/9,.45,1.6);if(p.x<-40||p.x>canvas.clientWidth+40||p.y<-40||p.y>canvas.clientHeight+40)return;ctx.save();ctx.fillStyle='rgba(0,0,0,.2)';ctx.beginPath();ctx.ellipse(p.x,p.y+z*.22,z,z*.32,0,0,Math.PI*2);ctx.fill();const g=ctx.createLinearGradient(p.x-z,p.y-z,p.x+z,p.y+z*.2);g.addColorStop(0,'#7a7568');g.addColorStop(.5,'#5a564d');g.addColorStop(1,'#3e3b35');ctx.fillStyle=g;ctx.beginPath();ctx.moveTo(p.x-z,p.y);ctx.lineTo(p.x-z*.52,p.y-z*.64);ctx.lineTo(p.x+z*.2,p.y-z*.82);ctx.lineTo(p.x+z,p.y-z*.2);ctx.lineTo(p.x+z*.65,p.y+z*.17);ctx.closePath();ctx.fill();ctx.fillStyle='rgba(210,200,175,.25)';ctx.beginPath();ctx.moveTo(p.x-z*.52,p.y-z*.64);ctx.lineTo(p.x+z*.2,p.y-z*.82);ctx.lineTo(p.x+z*.45,p.y-z*.19);ctx.lineTo(p.x-z*.34,p.y-z*.19);ctx.closePath();ctx.fill();ctx.strokeStyle='rgba(0,0,0,.15)';ctx.stroke();ctx.restore()}
+  function drawPerson(x,y,kind,scale=1){const p=point(x,y,canvas.clientWidth,canvas.clientHeight),z=clamp(p.s/9,.6,1.45)*scale,xx=p.x,yy=p.y;if(xx<-50||xx>canvas.clientWidth+50||yy<-60||yy>canvas.clientHeight+40)return;
+    ctx.save();ctx.fillStyle='rgba(0,0,0,.28)';ctx.beginPath();ctx.ellipse(xx,yy+4*z,12*z,4*z,0,0,Math.PI*2);ctx.fill();
+    const skin=ctx.createRadialGradient(xx-1*z,yy-12*z,1*z,xx,yy-10*z,5*z);skin.addColorStop(0,'#ddb892');skin.addColorStop(1,'#a97455');
     if(kind==='player'){
-      // coat and hooded silhouette
-      ctx.fillStyle='#14171a';ctx.beginPath();ctx.moveTo(xx-7*z,yy-5*z);ctx.lineTo(xx-10*z,yy+9*z);ctx.lineTo(xx+10*z,yy+9*z);ctx.lineTo(xx+7*z,yy-5*z);ctx.closePath();ctx.fill();
-      ctx.fillStyle='#353638';ctx.beginPath();ctx.moveTo(xx-7*z,yy-5*z);ctx.lineTo(xx,yy-12*z);ctx.lineTo(xx+7*z,yy-5*z);ctx.lineTo(xx+5*z,yy+5*z);ctx.lineTo(xx-5*z,yy+5*z);ctx.closePath();ctx.fill();
-      ctx.fillStyle='#c1a47a';ctx.beginPath();ctx.arc(xx,yy-11*z,4*z,0,Math.PI*2);ctx.fill();ctx.fillStyle='#211d1a';ctx.beginPath();ctx.arc(xx,yy-13*z,4.5*z,Math.PI,Math.PI*2);ctx.fill();
-      ctx.strokeStyle='#a63f42';ctx.lineWidth=2*z;ctx.beginPath();ctx.moveTo(xx+4*z,yy+1*z);ctx.lineTo(xx+12*z,yy-8*z);ctx.stroke();ctx.fillStyle='#d3b77b';ctx.fillRect(xx+10*z,yy-10*z,3*z,3*z);
-      if(game.player.attack>0){ctx.strokeStyle='#dcdbc4';ctx.lineWidth=2*z;ctx.beginPath();ctx.arc(xx,yy,17*z,-1.2,.7);ctx.stroke()}
-      if(game.player.walk>0){ctx.strokeStyle='#d0b679';ctx.globalAlpha=.5;ctx.beginPath();ctx.arc(xx,yy,18*z,0,Math.PI*2);ctx.stroke();ctx.globalAlpha=1}
+      const coat=ctx.createLinearGradient(xx-10*z,yy-8*z,xx+10*z,yy+10*z);coat.addColorStop(0,'#2b3138');coat.addColorStop(.5,'#171b20');coat.addColorStop(1,'#0e1115');
+      ctx.fillStyle=coat;ctx.beginPath();ctx.moveTo(xx-8*z,yy-5*z);ctx.quadraticCurveTo(xx-12*z,yy+4*z,xx-10*z,yy+10*z);ctx.lineTo(xx+10*z,yy+10*z);ctx.quadraticCurveTo(xx+12*z,yy+4*z,xx+8*z,yy-5*z);ctx.closePath();ctx.fill();
+      ctx.fillStyle='#3b424a';ctx.beginPath();ctx.moveTo(xx-7*z,yy-5*z);ctx.lineTo(xx,yy-14*z);ctx.lineTo(xx+7*z,yy-5*z);ctx.lineTo(xx+4*z,yy+4*z);ctx.lineTo(xx-4*z,yy+4*z);ctx.closePath();ctx.fill();
+      ctx.fillStyle=skin;ctx.beginPath();ctx.arc(xx,yy-11*z,3.8*z,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#2a2118';ctx.beginPath();ctx.arc(xx,yy-12.5*z,4.2*z,Math.PI*.95,Math.PI*2.05);ctx.fill();
+      ctx.strokeStyle='rgba(180,60,60,.9)';ctx.lineWidth=1.8*z;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(xx+4*z,yy+1*z);ctx.lineTo(xx+13*z,yy-9*z);ctx.stroke();
+      ctx.fillStyle='#cdb06a';ctx.fillRect(xx+11*z,yy-10*z,2.8*z,2.8*z);
+      if(game.player.attack>0){ctx.strokeStyle='rgba(255,245,210,.85)';ctx.lineWidth=2*z;ctx.beginPath();ctx.arc(xx,yy,18*z,-1.1,.8);ctx.stroke()}
     }else if(kind==='maria'){
-      ctx.fillStyle='#4b4d3e';ctx.beginPath();ctx.moveTo(xx-7*z,yy-4*z);ctx.lineTo(xx-10*z,yy+9*z);ctx.lineTo(xx+10*z,yy+9*z);ctx.lineTo(xx+7*z,yy-4*z);ctx.closePath();ctx.fill();ctx.fillStyle='#c2a277';ctx.beginPath();ctx.arc(xx,yy-10*z,4*z,0,Math.PI*2);ctx.fill();ctx.fillStyle='#795443';ctx.beginPath();ctx.arc(xx,yy-12*z,4.5*z,Math.PI,Math.PI*2);ctx.fill();ctx.strokeStyle='#7d8c83';ctx.lineWidth=2*z;ctx.beginPath();ctx.moveTo(xx-5*z,yy-4*z);ctx.lineTo(xx-10*z,yy+3*z);ctx.stroke();
+      const armor=ctx.createLinearGradient(xx,yy-8*z,xx,yy+10*z);armor.addColorStop(0,'#6a725f');armor.addColorStop(1,'#3d4337');
+      ctx.fillStyle=armor;ctx.beginPath();ctx.moveTo(xx-8*z,yy-4*z);ctx.lineTo(xx-10*z,yy+10*z);ctx.lineTo(xx+10*z,yy+10*z);ctx.lineTo(xx+8*z,yy-4*z);ctx.closePath();ctx.fill();
+      ctx.fillStyle=skin;ctx.beginPath();ctx.arc(xx,yy-10*z,3.7*z,0,Math.PI*2);ctx.fill();ctx.fillStyle='#6a4b36';ctx.beginPath();ctx.arc(xx,yy-11.5*z,4.2*z,Math.PI,Math.PI*2);ctx.fill();
+      ctx.strokeStyle='#8fa397';ctx.lineWidth=2*z;ctx.beginPath();ctx.moveTo(xx-5*z,yy-4*z);ctx.lineTo(xx-11*z,yy+5*z);ctx.stroke();
     }else if(kind==='rocky'){
-      ctx.fillStyle='#8c9690';ctx.beginPath();ctx.arc(xx,yy-8*z,6*z,0,Math.PI*2);ctx.fill();ctx.fillStyle='#59635f';ctx.beginPath();ctx.moveTo(xx-8*z,yy-1*z);ctx.lineTo(xx,yy-7*z);ctx.lineTo(xx+8*z,yy-1*z);ctx.lineTo(xx+9*z,yy+9*z);ctx.lineTo(xx-9*z,yy+9*z);ctx.closePath();ctx.fill();ctx.fillStyle='#1b211f';ctx.fillRect(xx-4*z,yy-9*z,2*z,2*z);ctx.fillRect(xx+3*z,yy-9*z,2*z,2*z);
+      const fur=ctx.createRadialGradient(xx-2*z,yy-10*z,2*z,xx,yy-2*z,14*z);fur.addColorStop(0,'#9ba6a0');fur.addColorStop(1,'#505a56');
+      ctx.fillStyle=fur;ctx.beginPath();ctx.ellipse(xx,yy-1*z,10*z,12*z,0,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#7f8a84';ctx.beginPath();ctx.arc(xx,yy-10*z,6*z,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#202723';ctx.beginPath();ctx.arc(xx-2*z,yy-11*z,1*z,0,Math.PI*2);ctx.arc(xx+2*z,yy-11*z,1*z,0,Math.PI*2);ctx.fill();
     }
+    ctx.restore();
   }
-  function drawHound(x,y,hp,maxHp){const p=point(x,y,canvas.clientWidth,canvas.clientHeight),z=clamp(p.s/9,.7,1.5),xx=p.x,yy=p.y;if(xx<-45||xx>canvas.clientWidth+45||yy<-40||yy>canvas.clientHeight+20)return;
-    ctx.fillStyle='#10131099';ctx.beginPath();ctx.ellipse(xx,yy+3*z,16*z,5*z,0,0,Math.PI*2);ctx.fill();ctx.fillStyle='#342c29';ctx.beginPath();ctx.ellipse(xx,yy-4*z,12*z,7*z,-.1,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.moveTo(xx+5*z,yy-8*z);ctx.lineTo(xx+14*z,yy-12*z);ctx.lineTo(xx+12*z,yy-3*z);ctx.closePath();ctx.fill();ctx.fillStyle='#171718';ctx.beginPath();ctx.moveTo(xx+7*z,yy-8*z);ctx.lineTo(xx+7*z,yy-15*z);ctx.lineTo(xx+11*z,yy-9*z);ctx.fill();ctx.fillStyle='#db5361';ctx.shadowColor='#e43a52';ctx.shadowBlur=7;ctx.fillRect(xx+12*z,yy-8*z,2*z,2*z);ctx.shadowBlur=0;ctx.strokeStyle='#8b4549';ctx.lineWidth=1.5*z;for(let i=-1;i<=1;i++){ctx.beginPath();ctx.moveTo(xx+i*6*z,yy+1*z);ctx.lineTo(xx+i*7*z,yy+7*z);ctx.stroke()}
+  function drawHound(x,y,hp,maxHp,meta){const p=point(x,y,canvas.clientWidth,canvas.clientHeight),z=clamp(p.s/9,.7,1.5),xx=p.x,yy=p.y;if(xx<-55||xx>canvas.clientWidth+55||yy<-50||yy>canvas.clientHeight+30)return;
+    ctx.save();ctx.fillStyle='rgba(0,0,0,.25)';ctx.beginPath();ctx.ellipse(xx,yy+4*z,18*z,5*z,0,0,Math.PI*2);ctx.fill();
+    const fur=ctx.createLinearGradient(xx-14*z,yy-12*z,xx+14*z,yy+8*z);fur.addColorStop(0,'#5a4a43');fur.addColorStop(.5,'#302825');fur.addColorStop(1,'#1a1513');
+    ctx.fillStyle=fur;ctx.beginPath();ctx.ellipse(xx,yy-4*z,13*z,7*z,-.08,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.moveTo(xx+6*z,yy-8*z);ctx.quadraticCurveTo(xx+16*z,yy-14*z,xx+15*z,yy-4*z);ctx.quadraticCurveTo(xx+11*z,yy-2*z,xx+7*z,yy-4*z);ctx.fill();
+    ctx.fillStyle='#231d1c';ctx.beginPath();ctx.moveTo(xx+8*z,yy-10*z);ctx.lineTo(xx+8*z,yy-16*z);ctx.lineTo(xx+12*z,yy-10*z);ctx.closePath();ctx.fill();
+    ctx.fillStyle='#ff6b6b';ctx.shadowColor='#ff4a4a';ctx.shadowBlur=10;ctx.beginPath();ctx.arc(xx+12.5*z,yy-7*z,1.5*z,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;
+    ctx.strokeStyle='#4a3432';ctx.lineWidth=1.8*z;ctx.lineCap='round';for(let i=-1;i<=1;i++){ctx.beginPath();ctx.moveTo(xx+i*6*z,yy+1*z);ctx.lineTo(xx+i*6.5*z,yy+8*z);ctx.stroke()}
+    ctx.restore();
   }
   function drawLandmark(l){const p=point(l.x,l.y,canvas.clientWidth,canvas.clientHeight),z=clamp(p.s/9,.65,1.5),x=p.x,y=p.y;if(x<-60||x>canvas.clientWidth+60||y<-80||y>canvas.clientHeight+40)return;ctx.save();ctx.translate(x,y);ctx.scale(z,z);
     ctx.fillStyle='#10131066';ctx.beginPath();ctx.ellipse(0,4,14,4,0,0,Math.PI*2);ctx.fill();
@@ -117,9 +142,14 @@
     if(game.scene==='wilds'){all.push({y:game.rift.y,draw:drawRift},{y:game.maria.y,draw:()=>drawPerson(game.maria.x,game.maria.y,'maria')},{y:game.rocky.y,draw:()=>drawPerson(game.rocky.x,game.rocky.y,'rocky')});if(game.hound.alive)all.push({y:game.hound.y,draw:()=>drawHound(game.hound.x,game.hound.y,game.hound.hp,game.hound.maxHp)});landmarks.forEach(l=>all.push({y:l.y,draw:()=>drawLandmark(l)}));regionEnemies.filter(e=>e.alive).forEach(e=>all.push({y:e.y,draw:()=>drawHound(e.x,e.y,e.hp,e.maxHp,e)}))}
     for(const e of game.enemies.filter(e=>e.alive))all.push({y:e.y,draw:()=>drawHound(e.x,e.y,e.hp,e.maxHp)});
     all.push({y:game.player.y,draw:()=>drawPerson(game.player.x,game.player.y,'player')});all.sort((a,b)=>a.y-b.y);all.forEach(a=>a.draw());
-    // atmospheric ash flecks
-    for(let i=0;i<32;i++){const x=(i*91+game.time*5)%w,y=(i*67+game.time*12)%h;ctx.fillStyle=`rgba(222,211,183,${.1+((i%3)*.035)})`;ctx.fillRect(x,y,1,1)}
+    // atmosphere
+    for(let i=0;i<40;i++){const x=(i*97+game.time*6)%w,y=(i*71+game.time*10)%h;ctx.fillStyle=`rgba(230,220,200,${.03+((i%4)*.01)})`;ctx.fillRect(x,y,1.5,1.5)}
+    const fog=ctx.createLinearGradient(0,h*.55,0,h);fog.addColorStop(0,'rgba(180,170,150,0)');fog.addColorStop(1,'rgba(120,110,95,.10)');ctx.fillStyle=fog;ctx.fillRect(0,0,w,h);
     if(game.scene==='astral')drawAstralOverlay(w,h);
+    // cinematic post-process
+    const vg=ctx.createRadialGradient(w*.5,h*.45,h*.2,w*.5,h*.5,h*.85);vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(0,0,0,.35)');ctx.fillStyle=vg;ctx.fillRect(0,0,w,h);
+    ctx.globalCompositeOperation='soft-light';ctx.fillStyle='rgba(120,145,110,.10)';ctx.fillRect(0,0,w,h);ctx.globalCompositeOperation='source-over';
+    ctx.globalAlpha=.05;ctx.drawImage(noiseCanvas,0,0,w,h);ctx.globalAlpha=1;
     drawMap();updateWorldUI();
   }
   function drawAstralOverlay(w,h){const g=ctx.createRadialGradient(w*.52,h*.48,5,w*.52,h*.48,w*.65);g.addColorStop(0,'#346b6977');g.addColorStop(.45,'#192d3e66');g.addColorStop(1,'#11101f66');ctx.fillStyle=g;ctx.fillRect(0,0,w,h);ctx.save();ctx.globalAlpha=.35;for(let i=0;i<20;i++){const x=(i*97+game.time*9)%w,y=(i*61+game.time*5)%h;ctx.fillStyle=i%2?'#99d6cf':'#be9fd5';ctx.fillRect(x,y,2,2)}ctx.restore()}
@@ -138,13 +168,13 @@
     if(nearbyEnemy){$('#enemyHud').classList.remove('hidden');$('#enemyHealth').style.width=`${nearbyEnemy.hp/nearbyEnemy.maxHp*100}%`;$('.enemy-name').innerHTML=`${nearbyEnemy.name} <span>LV. ${nearbyEnemy.level}</span>`}else $('#enemyHud').classList.add('hidden');
     const region=getRegion();$('#zoneName').textContent=region.name;$('#locationTitle').textContent=region.title;$('#locationSub').textContent=region.sub+(game.scene==='astral'?'':' • 18:42');$('#weather').textContent=region.weather;$('#ambientText').textContent=currentAmbient();
   }
-  function distance(a,b){return Math.hypot(a.x-b.x,a.y-b.y)}
+  function distance(a,b){return dist(a,b)}
   function nearestTarget(){if(game.scene==='wilds'){const list=[{x:game.rift.x,y:game.rift.y,label:game.quest.riftDone?'Leave the astral rift':'Enter the astral rift',kind:'rift'},{x:game.maria.x,y:game.maria.y,label:'Speak with Maria',kind:'maria'},{x:game.rocky.x,y:game.rocky.y,label:'Speak with Rocky',kind:'rocky'},...landmarks.map(l=>({x:l.x,y:l.y,label:`Inspect ${l.name}`,kind:'landmark',ref:l}))];return list.filter(t=>distance(game.player,t)<9).sort((a,b)=>distance(game.player,a)-distance(game.player,b))[0]||null}return distance(game.player,{x:50,y:50})<9?{label:'Escape the astral',kind:'exit'}:null}
   function toast(text){const el=$('#toast');el.textContent=text;el.classList.add('show');clearTimeout(game.toastTimer);game.toastTimer=setTimeout(()=>el.classList.remove('show'),2500)}
   function interact(){if(!game.started){startGame();return}const target=nearestTarget();if(!target){toast('Nothing close enough to interact with.');return}if(target.kind==='maria'){openChat('Maria');return}if(target.kind==='rocky'){openChat('Rocky');return}if(target.kind==='landmark'){const l=target.ref;if(l.action==='camp'){game.player.hp=Math.min(game.player.maxHp,game.player.hp+60);game.player.mana=Math.min(game.player.maxMana,game.player.mana+40);toast(`${l.name} — rested, +60 HP/+40 mana`)}else if(l.action==='shrine'){game.player.mana=game.player.maxMana;game.player.xp+=40;toast(`${l.name} — aura restored, +40 XP`)}else if(l.action==='crystal'){if(!l.looted){l.looted=true;addLoot('Astral Crystal','RARE • CRAFTING MATERIAL','common');game.player.gold+=55;$('#goldCount').textContent=game.player.gold.toLocaleString();toast('Astral Crystal recovered')}else toast('The crystal cluster has already been harvested.')}else{if(!l.looted){l.looted=true;addLoot('Old World Cache','UNCOMMON • SUPPLIES','common');game.player.gold+=40;game.player.potions+=1;$('.potion b').textContent=game.player.potions;$('#goldCount').textContent=game.player.gold.toLocaleString();toast('You found supplies and a tonic')}else toast('Nothing else of value remains here.')}draw();return}
     if(target.kind==='rift'){if(game.scene==='wilds'){game.scene='astral';game.player.x=50;game.player.y=52;game.player.hp=Math.max(game.player.hp,game.player.maxHp*.65);game.enemies=[{x:59,y:43,hp:85,maxHp:85,alive:true},{x:40,y:57,hp:110,maxHp:110,alive:true}];if(!game.quest.riftFound){game.quest.riftFound=true;$('#objective').classList.add('complete');$('#questDescription').textContent='Enter the rift and claim its essence.';toast('ASTRAL RIFT LOCATED • Quest updated')}else toast('You step through the shimmering veil.');$('#ambientText').textContent='Reality folds around you.'}else{toast('The rift pulls at your essence…');}draw();return}if(target.kind==='exit'){if(game.enemies.some(e=>e.alive)){toast('The rift is sealed while astral creatures remain.');return}game.scene='wilds';const s=findClearSpot(game.rift.x-5,game.rift.y+4);game.player.x=s.x;game.player.y=s.y;if(!game.quest.essence){game.quest.essence=true;game.essences.veil=true;game.essences.pending='blood';game.player.xp+=480;game.player.gold+=180;game.player.mana=game.player.maxMana;$('#objective2').classList.add('complete');$('#questDescription').textContent='The rift has been closed. Maria will want to hear this.';$('#goldCount').textContent=game.player.gold.toLocaleString();addLoot('Veil-Touched Essence','ESSENCE • RARE','essence');toast('QUEST COMPLETE • Veil-Touched Essence acquired!')}else toast('You return to Greenstone.');draw()}}
   function startGame(){game.started=true;$('#sceneTitleCard').classList.add('dismissed');toast('Journey resumed • Find the astral rift beyond Greenstone');setTimeout(()=>{game.hound.aggro=true;toast('A transformation-strain hound is tracking your aura!')},5000);draw()}
-  function move(dx,dy,dt){if(!game.started)return;const len=Math.hypot(dx,dy)||1;const speed=dt*.018;const nx=clamp(game.player.x+dx/len*speed,3,97),ny=clamp(game.player.y+dy/len*speed,4,96);if(!isBlocked(nx,game.player.y))game.player.x=nx;if(!isBlocked(game.player.x,ny))game.player.y=ny;if(dx)game.player.dir=Math.sign(dx);if(dx||dy){game.player.walk=1;setTimeout(()=>game.player.walk=0,120)}}
+  function move(dx,dy,dt){if(!game.started)return;const len=Math.hypot(dx,dy)||1;const speed=dt*7;const nx=wrap(game.player.x+dx/len*speed),ny=wrap(game.player.y+dy/len*speed);if(!isBlocked(nx,game.player.y))game.player.x=nx;if(!isBlocked(game.player.x,ny))game.player.y=ny;if(dx)game.player.dir=Math.sign(dx);if(dx||dy){game.player.walk=1;setTimeout(()=>game.player.walk=0,120)}}
   function attack(skill=0){if(!game.started)return;if(skill===1&&!game.essences.shadow&&$$('[data-slot]').find(el=>el.dataset.essenceName==='shadow')){}else if(skill===1&&!game.essences.shadow){toast('That essence has not been looted or equipped.');return}if(skill===2&&!game.essences.blood){toast('That essence has not been looted or equipped.');return}if(skill===4&&!game.essences.sandwich){toast('The Sandwich confluence has not been equipped.');return}if(game.cooldowns[skill]>0){toast('That ability is not ready yet.');return}const cost=skill===1?22:skill===2?35:skill===4?5:0;if(game.player.mana<cost){toast('Not enough mana.');return}game.player.mana-=cost;game.cooldowns[skill]=skill===0?0.38:skill===1?4:skill===2?6:skill===4?2:0.8;game.player.attack=.25;$('#combatFlash').classList.remove('hit');void $('#combatFlash').offsetWidth;$('#combatFlash').classList.add('hit');let target=null;
     if(game.scene==='wilds'&&game.hound.alive&&distance(game.player,game.hound)<18)target=game.hound;
     if(!target)target=game.enemies.find(e=>e.alive&&distance(game.player,e)<19);
@@ -154,9 +184,9 @@
   function addLoot(name,desc,type){game.loot.unshift({name,desc,type});if(game.loot.length>5)game.loot.pop();const list=$('#lootList');list.innerHTML=game.loot.map((l,i)=>`<div class="loot-row ${l.type==='essence'?'loot-clickable':''}"><span class="loot-emblem ${l.type}">${l.type==='essence'?'✹':'◈'}</span><div><b>${l.name}</b><small>${l.desc}</small></div><span class="loot-time">now</span></div>`).join('');if(type==='essence')list.querySelector('.loot-clickable')?.addEventListener('click',equipPendingEssence)}
   function usePotion(){if(game.player.potions<=0){toast('No health tonics remaining.');return}if(game.player.hp>=game.player.maxHp){toast('Health is already full.');return}game.player.potions--;game.player.hp=Math.min(game.player.maxHp,game.player.hp+75);$('.potion b').textContent=game.player.potions;toast('Health tonic used • +75 health');draw()}
   function tick(dt){game.time+=dt;game.cooldowns=game.cooldowns.map(c=>Math.max(0,c-dt));game.player.mana=Math.min(game.player.maxMana,game.player.mana+dt*2);if(game.started){let dx=0,dy=0;if(game.keys.w||game.keys.ArrowUp)dy--;if(game.keys.s||game.keys.ArrowDown)dy++;if(game.keys.a||game.keys.ArrowLeft)dx--;if(game.keys.d||game.keys.ArrowRight)dx++;if(dx||dy)move(dx,dy,dt);if(game.pointer){const r=canvas.getBoundingClientRect(),tx=(game.pointer.x-r.left-r.width/2)/Math.min(r.width/75,r.height/73),ty=(game.pointer.y-r.top-r.height*.56)/Math.min(r.width/75,r.height/73);const len=Math.hypot(tx,ty);if(len>2)move(tx,ty,dt)}
-      if(game.hound.alive&&game.hound.aggro){const d=distance(game.player,game.hound);if(d<35){const v=d||1;game.hound.x+=((game.player.x-game.hound.x)/v)*dt*2.7;game.hound.y+=((game.player.y-game.hound.y)/v)*dt*2.7;if(d<8){game.hound.attackCd-=dt;if(game.hound.attackCd<=0){game.player.hp=Math.max(0,game.player.hp-8);game.hound.attackCd=1.4;if(game.player.hp===0){const s=findClearSpot(24,63);game.player.hp=game.player.maxHp*.5;game.player.x=s.x;game.player.y=s.y;toast('You awaken at the trailhead. The hound still lurks.')}}}}}
-      game.enemies.filter(e=>e.alive).forEach(e=>{const d=distance(game.player,e);if(d<30){const v=d||1;e.x+=(game.player.x-e.x)/v*dt*1.7;e.y+=(game.player.y-e.y)/v*dt*1.7;if(d<8){e.cd=(e.cd||0)-dt;if(e.cd<=0){game.player.hp=Math.max(0,game.player.hp-7);e.cd=1.6}}}});
-      if(game.scene==='wilds'){regionEnemies.forEach(e=>{if(!e.alive){if(e.respawnAt&&game.time>e.respawnAt){e.alive=true;e.hp=e.maxHp;e.respawnAt=0}return}const d=distance(game.player,e);if(d<28){const v=d||1;e.x=clamp(e.x+(game.player.x-e.x)/v*dt*1.9,3,97);e.y=clamp(e.y+(game.player.y-e.y)/v*dt*1.9,4,96);if(d<8){e.cd=(e.cd||0)-dt;if(e.cd<=0){game.player.hp=Math.max(0,game.player.hp-(e.dmg||8));e.cd=1.5;if(game.player.hp<=0){const s=findClearSpot(24,63);game.player.hp=game.player.maxHp*.5;game.player.x=s.x;game.player.y=s.y;toast('You awaken at the trailhead, bruised but alive.')}}}}})}
+      if(game.hound.alive&&game.hound.aggro){const d=distance(game.player,game.hound);if(d<35){const v=d||1;game.hound.x=wrap(game.hound.x+(wrapDelta(game.player.x-game.hound.x)/v)*dt*6.5);game.hound.y=wrap(game.hound.y+(wrapDelta(game.player.y-game.hound.y)/v)*dt*6.5);if(d<8){game.hound.attackCd-=dt;if(game.hound.attackCd<=0){game.player.hp=Math.max(0,game.player.hp-8);game.hound.attackCd=1.4;if(game.player.hp===0){const s=findClearSpot(game.spawn?game.spawn.x:24,game.spawn?game.spawn.y:63);game.player.hp=game.player.maxHp*.5;game.player.x=s.x;game.player.y=s.y;toast('You awaken at the trailhead. The hound still lurks.')}}}}}
+      game.enemies.filter(e=>e.alive).forEach(e=>{const d=distance(game.player,e);if(d<30){const v=d||1;e.x=wrap(e.x+(wrapDelta(game.player.x-e.x)/v)*dt*5.5);e.y=wrap(e.y+(wrapDelta(game.player.y-e.y)/v)*dt*5.5);if(d<8){e.cd=(e.cd||0)-dt;if(e.cd<=0){game.player.hp=Math.max(0,game.player.hp-7);e.cd=1.6}}}});
+      if(game.scene==='wilds'){regionEnemies.forEach(e=>{if(!e.alive){if(e.respawnAt&&game.time>e.respawnAt){e.alive=true;e.hp=e.maxHp;e.respawnAt=0}return}const d=distance(game.player,e);if(d<28){const v=d||1;e.x=wrap(e.x+(wrapDelta(game.player.x-e.x)/v)*dt*5.8);e.y=wrap(e.y+(wrapDelta(game.player.y-e.y)/v)*dt*5.8);if(d<8){e.cd=(e.cd||0)-dt;if(e.cd<=0){game.player.hp=Math.max(0,game.player.hp-(e.dmg||8));e.cd=1.5;if(game.player.hp<=0){const s=findClearSpot(game.spawn?game.spawn.x:24,game.spawn?game.spawn.y:63);game.player.hp=game.player.maxHp*.5;game.player.x=s.x;game.player.y=s.y;toast('You awaken at the trailhead, bruised but alive.')}}}}})}
     }draw();requestAnimationFrame((t)=>{const prev=tick.last||t;tick.last=t;tick(Math.min(.05,(t-prev)/1000))})}
   function openModal(title,eyebrow,body){$('#modalContent').innerHTML=`<div class="eyebrow">${eyebrow}</div><h2>${title}</h2>${body}`;$('#modalBackdrop').classList.remove('hidden')}
   function closeModal(){$('#modalBackdrop').classList.add('hidden')}

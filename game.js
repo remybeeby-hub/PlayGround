@@ -20,7 +20,9 @@ const generated = new THREE.Group(); world.add(generated);
 const props = [];
 const destructibles = [];
 const explosions = [];
+const meteors = [];
 let rainbowGroup = null;
+let bagelMode = false;
 const clock = new THREE.Clock();
 const player = { x: 0, z: 7, y: 0, yaw: 0, pitch: -0.035, speed: 5.3, bob: 0 };
 const keys = new Set();
@@ -281,41 +283,112 @@ function burstAt(position,color='#e8ca9d',count=32){
     const mesh=addMesh(group,new THREE.SphereGeometry(.035+rand()*.07,5,4),material(color,.4,{emissive:color,emissiveIntensity:.3}),[(rand()-.5)*1.6,rand()*1.1,(rand()-.5)*1.6],null,false,false);
     particles.push({mesh,life:.65+rand()*.9,age:0,velocity:new THREE.Vector3((rand()-.5)*2,1+rand()*2,(rand()-.5)*2),group});
   }
+  styleNewObject(group);
 }
 function updateParticles(dt){
   for(let i=particles.length-1;i>=0;i--){const p=particles[i];p.age+=dt;p.mesh.position.addScaledVector(p.velocity,dt);p.velocity.y-=2.2*dt;p.mesh.material.opacity=1-p.age/p.life;p.mesh.material.transparent=true;if(p.age>=p.life){p.group.remove(p.mesh);particles.splice(i,1);if(p.group.children.length===0)p.group.removeFromParent();}}
 }
-function explodeAt(position, lower=''){
-  const radius=/everything|whole village|massive|nuke|huge/.test(lower)?42:21;
-  const candidates=destructibles.slice();let destroyed=0;
-  for(const object of candidates){
+function explodeAt(position, lower='', options={}){
+  const nuke=options.nuke===true,radius=options.radius||(nuke?76:/everything|whole village|massive|nuke|huge/.test(lower)?42:21);
+  const scale=options.scale||(nuke?3.2:1),life=options.life||(nuke?4.8:1.7);
+  let destroyed=0;
+  for(const object of destructibles.slice()){
     if(!object?.parent||object.userData.destroyed)continue;
-    const point=object.getWorldPosition(new THREE.Vector3());
-    if(point.distanceTo(position)<=radius){object.userData.destroyed=true;object.visible=false;destroyed++;}
+    if(object.getWorldPosition(new THREE.Vector3()).distanceTo(position)<=radius){object.userData.destroyed=true;object.visible=false;destroyed++;}
   }
   for(let i=props.length-1;i>=0;i--)if(props[i].userData.destroyed)props.splice(i,1);
   const group=new THREE.Group();group.position.copy(position);generated.add(group);
-  const core=addMesh(group,new THREE.SphereGeometry(1,20,16),new THREE.MeshBasicMaterial({color:'#ff6a24',transparent:true,opacity:.95,depthWrite:false}),[0,2,0],[.1,.1,.1],false,false);
-  const glow=addMesh(group,new THREE.SphereGeometry(1,18,14),new THREE.MeshBasicMaterial({color:'#ffd36b',transparent:true,opacity:.8,depthWrite:false}),[0,2,0],[.1,.1,.1],false,false);
-  const ring=addMesh(group,new THREE.RingGeometry(.82,1,48),new THREE.MeshBasicMaterial({color:'#ffb13b',transparent:true,opacity:.9,side:THREE.DoubleSide,depthWrite:false}),[0,.12,0],null,false,false);ring.rotation.x=-Math.PI/2;
-  const smoke=addMesh(group,new THREE.SphereGeometry(1,14,10),new THREE.MeshBasicMaterial({color:'#55443d',transparent:true,opacity:.42,depthWrite:false}),[0,3.8,0],[.4,.5,.4],false,false);
-  explosions.push({group,core,glow,ring,smoke,age:0,life:1.3});
-  burstAt(new THREE.Vector3(position.x,position.y+.5,position.z),'#ff6328',44);
-  burstAt(new THREE.Vector3(position.x,position.y+.5,position.z),'#ffd064',28);
-  burstAt(new THREE.Vector3(position.x,position.y+.5,position.z),'#67554b',18);
+  const core=addMesh(group,new THREE.SphereGeometry(1,24,18),new THREE.MeshBasicMaterial({color:'#ff6a24',transparent:true,opacity:.95,depthWrite:false}),[0,2,0],[.1,.1,.1],false,false);
+  const glow=addMesh(group,new THREE.SphereGeometry(1,20,16),new THREE.MeshBasicMaterial({color:'#ffd36b',transparent:true,opacity:.8,depthWrite:false}),[0,2,0],[.1,.1,.1],false,false);
+  const ring=addMesh(group,new THREE.RingGeometry(.82,1,64),new THREE.MeshBasicMaterial({color:'#ffb13b',transparent:true,opacity:.9,side:THREE.DoubleSide,depthWrite:false}),[0,.12,0],null,false,false);ring.rotation.x=-Math.PI/2;
+  const smoke=addMesh(group,new THREE.SphereGeometry(1,18,12),new THREE.MeshBasicMaterial({color:nuke?'#51443e':'#55443d',transparent:true,opacity:.42,depthWrite:false}),[0,3.8,0],[.4,.5,.4],false,false);
+  let stem=null,mushroom=null;
+  if(nuke){
+    stem=addMesh(group,new THREE.CylinderGeometry(1.3,3.2,1,16),new THREE.MeshBasicMaterial({color:'#665247',transparent:true,opacity:.78,depthWrite:false}),[0,9,0],[.1,.1,.1],false,false);
+    mushroom=addMesh(group,new THREE.SphereGeometry(1,24,16),new THREE.MeshBasicMaterial({color:'#80624d',transparent:true,opacity:.82,depthWrite:false}),[0,20,0],[.1,.1,.1],false,false);
+  }
+  styleNewObject(group);
+  explosions.push({group,core,glow,ring,smoke,stem,mushroom,scale,age:0,life});
+  burstAt(new THREE.Vector3(position.x,position.y+.5,position.z),'#ff6328',nuke?72:44);
+  burstAt(new THREE.Vector3(position.x,position.y+.5,position.z),'#ffd064',nuke?48:28);
+  if(nuke)burstAt(new THREE.Vector3(position.x,position.y+.5,position.z),'#67554b',56);
   return destroyed;
 }
 function updateExplosions(dt){
   for(let i=explosions.length-1;i>=0;i--){
-    const e=explosions[i];e.age+=dt;const p=Math.min(e.age/e.life,1),flare=Math.sin(Math.min(p*2.7,1)*Math.PI*.5);
-    e.core.scale.setScalar(.1+flare*8);e.glow.scale.setScalar(.1+flare*12);e.ring.scale.setScalar(.2+p*17);e.smoke.scale.set(.4+p*7,.5+p*5,.4+p*7);
+    const e=explosions[i];e.age+=dt;const p=Math.min(e.age/e.life,1),flare=Math.sin(Math.min(p*2.7,1)*Math.PI*.5),s=e.scale;
+    e.core.scale.setScalar(.1+flare*8*s);e.glow.scale.setScalar(.1+flare*12*s);e.ring.scale.setScalar(.2+p*17*s);e.smoke.scale.set(.4+p*7*s,.5+p*5*s,.4+p*7*s);
     e.core.material.opacity=(1-p)*.95;e.glow.material.opacity=(1-p)*.68;e.ring.material.opacity=(1-p)*.9;e.smoke.material.opacity=(1-p)*.42;
-    if(e.age>=e.life){e.group.removeFromParent();for(const child of e.group.children){child.geometry.dispose();child.material.dispose();}explosions.splice(i,1);}
+    if(e.stem){e.stem.scale.set(1.2+p*3,Math.max(.1,p*22),1.2+p*3);e.stem.position.y=8+p*13;e.stem.material.opacity=(1-p)*.72;}
+    if(e.mushroom){e.mushroom.scale.set(1+p*19,1+p*12,1+p*19);e.mushroom.position.y=18+p*35;e.mushroom.material.opacity=(1-p)*.82;}
+    if(e.age>=e.life){e.group.traverse(child=>{child.geometry?.dispose();if(Array.isArray(child.material))child.material.forEach(m=>m.dispose());else child.material?.dispose();});e.group.removeFromParent();explosions.splice(i,1);}
+  }
+}
+function spawnMeteorShower(count=5){
+  for(let i=0;i<count;i++){
+    const forward=new THREE.Vector3(Math.sin(player.yaw),0,-Math.cos(player.yaw));
+    const side=new THREE.Vector3(forward.z,0,-forward.x);
+    const tx=clamp(player.x+forward.x*(20+rand()*22)+side.x*(rand()-.5)*34,-180,180);
+    const tz=clamp(player.z+forward.z*(20+rand()*22)+side.z*(rand()-.5)*34,-180,180);
+    const target=new THREE.Vector3(tx,terrainHeight(tx,tz)+.5,tz);
+    const start=target.clone().add(new THREE.Vector3((rand()-.5)*18,55+rand()*25,(rand()-.5)*18));
+    const group=new THREE.Group();group.position.copy(start);generated.add(group);
+    const rock=addMesh(group,new THREE.SphereGeometry(.75+rand()*.45,12,9),new THREE.MeshStandardMaterial({color:'#ffb34e',emissive:'#ff4a19',emissiveIntensity:2,roughness:.7}),[0,0,0],null,false,false);
+    const tail=addMesh(group,new THREE.ConeGeometry(.42,6,10),new THREE.MeshBasicMaterial({color:'#ff6d2d',transparent:true,opacity:.72,depthWrite:false}),[0,3.1,0],null,false,false);tail.rotation.x=Math.PI;
+    const direction=start.clone().sub(target).normalize();group.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),direction);
+    styleNewObject(group);meteors.push({group,target,start,age:-i*.22,duration:1.55+rand()*.45});
+  }
+}
+function updateMeteors(dt){
+  for(let i=meteors.length-1;i>=0;i--){
+    const meteor=meteors[i];meteor.age+=dt;
+    if(meteor.age<0)continue;
+    const p=clamp(meteor.age/meteor.duration,0,1);meteor.group.position.lerpVectors(meteor.start,meteor.target,p);
+    if(p>=1){const impact=meteor.target.clone();meteor.group.traverse(child=>{child.geometry?.dispose();child.material?.dispose();});meteor.group.removeFromParent();meteors.splice(i,1);explodeAt(impact,'meteor impact',{radius:12,scale:.65,life:1.7});}
   }
 }
 
 const palette={rose:'#bd6f64',red:'#c45c4d',orange:'#dc895c',yellow:'#e7c56e',gold:'#d5aa62',blue:'#6e9fb0',teal:'#71a9a0',green:'#77956c',purple:'#947da8',pink:'#d692aa',white:'#e7e2d4',black:'#30353a',silver:'#aeb9b8',golden:'#d5aa62'};
 function colorFrom(text){for(const [name,color] of Object.entries(palette))if(text.includes(name))return color;return ['#d3a87a','#9ba982','#819ea0','#bb9075','#ada1bb'][Math.floor(rand()*5)];}
+const bagelTones=[new THREE.Color('#87502f'),new THREE.Color('#c98242'),new THREE.Color('#f3cf86')];
+function toastedColor(source){
+  const light=source.r*.2126+source.g*.7152+source.b*.0722;
+  if(light<.48)return bagelTones[0].clone().lerp(bagelTones[1],clamp(light/.48,0,1));
+  return bagelTones[1].clone().lerp(bagelTones[2],clamp((light-.48)/.52,0,1));
+}
+function paintBagelMesh(mesh){
+  if(mesh.userData.bagelOriginalMaterial)return;
+  mesh.userData.bagelOriginalMaterial=mesh.material;
+  const recolor=source=>{const clone=source.clone();if(clone.color){const c=toastedColor(source.color);clone.color.copy(c);if(clone.emissive)clone.emissive.set('#6b351b');if('emissiveIntensity'in clone)clone.emissiveIntensity=Math.max(clone.emissiveIntensity||0,.08);}return clone;};
+  mesh.material=Array.isArray(mesh.material)?mesh.material.map(recolor):recolor(mesh.material);
+  const colors=mesh.geometry?.attributes?.color;
+  if(colors){
+    mesh.userData.bagelOriginalColors=colors.array.slice();
+    for(let i=0;i<colors.count;i++){const c=toastedColor(new THREE.Color(colors.getX(i),colors.getY(i),colors.getZ(i)));colors.setXYZ(i,c.r,c.g,c.b);}
+    colors.needsUpdate=true;
+  }
+}
+function restoreBagelMesh(mesh){
+  if(!mesh.userData.bagelOriginalMaterial)return;
+  const current=Array.isArray(mesh.material)?mesh.material:[mesh.material];
+  current.forEach(m=>m?.dispose?.());mesh.material=mesh.userData.bagelOriginalMaterial;delete mesh.userData.bagelOriginalMaterial;
+  const colors=mesh.geometry?.attributes?.color,original=mesh.userData.bagelOriginalColors;
+  if(colors&&original){colors.array.set(original);colors.needsUpdate=true;delete mesh.userData.bagelOriginalColors;}
+}
+function applyBagelStyle(){
+  if(!bagelMode)return;
+  scene.traverse(object=>{if(object.isMesh)paintBagelMesh(object);});
+  scene.background.set('#d6a05d');scene.fog.color.set('#c58a4d');scene.fog.density=.007;
+}
+function styleNewObject(object){if(bagelMode)object.traverse(node=>{if(node.isMesh)paintBagelMesh(node);});}
+function setBagelMode(enabled){
+  if(bagelMode===enabled)return;
+  bagelMode=enabled;
+  if(enabled){applyBagelStyle();return;}
+  scene.traverse(object=>{if(object.isMesh)restoreBagelMesh(object);});
+  setTime(timeState);setWeather(weatherState);
+  if(rainbowGroup&&weatherState==='clear'){scene.background.set('#829abd');scene.fog.color.set('#829abd');scene.fog.density=.006;}
+}
 function setRainbow(enabled=true){
   if(!enabled){if(rainbowGroup)rainbowGroup.removeFromParent();rainbowGroup=null;return;}
   if(rainbowGroup)return;
@@ -329,6 +402,7 @@ function setRainbow(enabled=true){
     band.renderOrder=10;rainbowGroup.add(band);
   });
   scene.background.set('#829abd');scene.fog.color.set('#829abd');scene.fog.density=.006;
+  if(bagelMode)applyBagelStyle();
 }
 function updateRainbow(){if(!rainbowGroup)return;rainbowGroup.position.set(player.x+Math.sin(player.yaw)*48,terrainHeight(player.x,player.z)+8,player.z-Math.cos(player.yaw)*48);rainbowGroup.rotation.y=-player.yaw;}
 function setTime(kind){
@@ -345,6 +419,7 @@ function setTime(kind){
   }
   document.querySelector('#world-clock').textContent=kind==='night'?'11:48 PM':kind==='day'?'12:26 PM':'07:42 AM';
   document.querySelector('#world-name').textContent=kind==='night'?'THE QUIET HOURS':kind==='day'?'A BRIGHTER DAY':'THE FIRST MORNING';
+  if(bagelMode)applyBagelStyle();
 }
 function setWeather(kind){
   weatherState=kind;const label=document.querySelector('#weather-label'),icon=document.querySelector('#weather-icon');
@@ -358,6 +433,7 @@ function setWeather(kind){
   }else{
     if(rainGroup)rainGroup.visible=false;scene.fog.density=timeState==='night'?.007:.0085;scene.fog.color.copy(scene.background);label.textContent=timeState==='night'?'CLEAR NIGHT':'GOLDEN HOUR';icon.textContent=timeState==='night'?'☾':'☀';
   }
+  if(bagelMode)applyBagelStyle();
 }
 function showToast(text){const node=document.querySelector('#toast');node.textContent=text;node.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>node.classList.remove('show'),2500);}
 function eventCard(title,description){
@@ -442,8 +518,8 @@ function spawnWish(text){
     addMesh(group,forms[Math.floor(rand()*forms.length)],gold,[0,1.55*big,0]);
     for(let i=0;i<3;i++){const orb=addMesh(group,new THREE.SphereGeometry(.22*big,12,9),material(color,.4,{emissive:color,emissiveIntensity:.5}),[(rand()-.5)*3*big,2+rand()*2*big,(rand()-.5)*2*big]);orb.userData.orbit=true;}
   }
-  const height=kind==='celestial'?terrainHeight(position.x,position.z):terrainHeight(position.x,position.z);
-  group.position.y=height-.35;group.scale.setScalar(.04);group.userData.targetScale=big;group.userData.rise=true;props.push(group);
+  const height=terrainHeight(position.x,position.z);
+  styleNewObject(group);group.position.y=height-.35;group.scale.setScalar(.04);group.userData.targetScale=big;group.userData.rise=true;props.push(group);
   burstAt(new THREE.Vector3(position.x,height+.3,position.z),color,38);
   const descriptor=/giant|huge|massive|towering/.test(lower)?'A new landmark just took root.':`You imagined ${noun}. It is here now.`;
   return {description:descriptor,position};
@@ -451,13 +527,17 @@ function spawnWish(text){
 function addOcean(){
   const x=player.x+Math.sin(player.yaw)*12+Math.cos(player.yaw)*7,z=player.z-Math.cos(player.yaw)*12+Math.sin(player.yaw)*7;
   const sea=addMesh(generated,new THREE.CircleGeometry(17,64),new THREE.MeshStandardMaterial({color:'#3e8492',roughness:.2,metalness:.18,transparent:true,opacity:.9}),[x,terrainHeight(x,z)+.12,z],[1.45,1,.9],false,true);
-  sea.rotation.x=-Math.PI/2;sea.userData.water=true;props.push(sea);return 'A new stretch of water found its way into the world.';
+  sea.rotation.x=-Math.PI/2;sea.userData.water=true;styleNewObject(sea);props.push(sea);return 'A new stretch of water found its way into the world.';
 }
 function interpret(text){
   const lower=text.toLowerCase();
+  if(/\b(normal world|undo bagel|restore normal|back to normal)\b/.test(lower)){setBagelMode(false);eventCard('The world returns','The hills remember their old colors.');showToast('BACK TO THE EVERYDAY');return;}
+  if(/\b(bagel|bagels)\b/.test(lower)&&/world|everything|whole|turn|transform|make|into/.test(lower)){setBagelMode(true);eventCard('A toasted reality','The valley, sky, and everything in between turn deliciously golden.');showToast('WHOLE WORLD: BAGEL');return;}
+  if(/\b(meteor|meteors|meteor shower|falling stars)\b/.test(lower)){spawnMeteorShower(/shower|storm|many|rain/.test(lower)?7:5);eventCard('The sky is falling','A streak of meteors is on its way across the valley.');showToast('LOOK UP');return;}
+  if(/\b(nuke|nuclear|atomic)\b/.test(lower)){const x=player.x+Math.sin(player.yaw)*12,z=player.z-Math.cos(player.yaw)*12,at=new THREE.Vector3(x,terrainHeight(x,z),z);const destroyed=explodeAt(at,lower,{nuke:true});eventCard('A nuclear blast',`${destroyed} things were caught in a vast mushroom-cloud explosion.`);showToast('A VERY BIG BOOM');return;}
   if(/\b(rainbow|rainbows)\b/.test(lower)&&( /sky|skies|horizon|above|weather|make|create|add|put|show/.test(lower) || lower.includes('make the sky'))){setRainbow(true);eventCard('A rainbow appeared','A bridge of color spans the valley.');showToast('A LITTLE MAGIC, OVERHEAD');return;}
   if(/\b(remove|clear|stop|turn off|no more)\b/.test(lower)&&/rainbow|rainbows/.test(lower)){setRainbow(false);eventCard('The rainbow fades','The sky is yours again.');showToast('SKY RESET');return;}
-  if(/\b(explode|explosion|blow ?(it|stuff|things|everything|up)|blasts?|detonate|nuke)\b/.test(lower)){
+  if(/\b(explode|explosion|blow ?(it|stuff|things|everything|up)|blasts?|detonate|bomb)\b/.test(lower)){
     const forward=new THREE.Vector3(Math.sin(player.yaw)*12,0,-Math.cos(player.yaw)*12);
     const at=new THREE.Vector3(player.x+forward.x,terrainHeight(player.x+forward.x,player.z+forward.z),player.z+forward.z);
     const destroyed=explodeAt(at,lower);eventCard(destroyed?'The landscape recoils':'A flash across the valley',destroyed?`${destroyed} things were removed in the blast.`:'The blast rings through the hills.');showToast('BOOM');return;
@@ -487,8 +567,12 @@ function interpret(text){
   showToast(result.description.toUpperCase());
 }
 function resetWorld(){
-  for(const p of props)generated.remove(p);props.length=0;
-  setRainbow(false);
+  setBagelMode(false);setRainbow(false);
+  for(const child of [...generated.children]){
+    child.traverse(node=>{node.geometry?.dispose();if(Array.isArray(node.material))node.material.forEach(m=>m.dispose());else node.material?.dispose();});
+    child.removeFromParent();
+  }
+  props.length=0;particles.length=0;explosions.length=0;meteors.length=0;
   if(rainGroup)rainGroup.visible=false;weatherState='golden hour';setTime('morning');setWeather('clear');
   player.x=0;player.z=7;player.yaw=0;player.pitch=-.035;player.fly=false;
   document.querySelector('#events').replaceChildren();document.querySelector('#intro').classList.remove('is-hidden');
@@ -533,7 +617,7 @@ frame=function(){
   if(water){water.position.y=waterBase+Math.sin(t*.7)*.035;water.material.opacity=.88+Math.sin(t*1.2)*.04;}
   for(const p of props){if(p.userData.rise){p.scale.lerp(new THREE.Vector3(p.userData.targetScale,p.userData.targetScale,p.userData.targetScale),1-Math.exp(-dt*3.2));if(p.scale.x>p.userData.targetScale*.97){p.scale.setScalar(p.userData.targetScale);p.userData.rise=false;}}if(p.userData.water)p.position.y+=Math.sin(t*.8)*.0008;}
   if(rainGroup?.visible){const points=rainGroup.userData.points,attr=points.geometry.attributes.position,limit=Math.hypot(player.x,player.z)+30;for(let i=0;i<attr.count;i++){let y=attr.getY(i)-dt*(rainGroup.userData.snow?1.8:12);if(y<0)y=23;attr.setY(i,y);}attr.needsUpdate=true;rainGroup.position.set(player.x,0,player.z);}
-  updateRainbow();updateExplosions(dt);updateParticles(dt);drawMap();renderer.render(scene,camera);
+  updateRainbow();updateExplosions(dt);updateMeteors(dt);updateParticles(dt);drawMap();renderer.render(scene,camera);
 };
 
 frame();

@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#101a22" />
+  <title>Elsewhere — A world made of words</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main id="game">
+    <canvas id="world" aria-label="Explore the open world"></canvas>
+    <div class="vignette"></div>
+    <header class="topbar">
+      <a class="brand" href="#" aria-label="Elsewhere home"><span class="brand-mark">E</span><span>ELSEWHERE<small>AN OPEN WORLD, WRITTEN BY YOU</small></span></a>
+      <div class="world-label"><span class="live-dot"></span><span id="world-name">THE FIRST MORNING</span><i></i><span id="world-clock">07:42 AM</span></div>
+      <button id="sound-toggle" class="icon-button" aria-label="Toggle ambient sound" title="Toggle ambient sound"><span id="sound-icon">♫</span></button>
+    </header>
+    <section class="coordinates"><span class="coord-caption">YOU ARE HERE</span><span id="coords">N 04° 18′ &nbsp; E 12° 06′</span><span class="weather"><span id="weather-icon">☀</span><span id="weather-label">GOLDEN HOUR</span></span></section>
+    <div class="crosshair"><span></span><i></i></div>
+    <section class="intro" id="intro">
+      <div class="eyebrow"><span></span> A WORLD WITH NO WRONG ANSWERS</div>
+      <h1>What if it<br><em>was already here?</em></h1>
+      <p>Think of something. Type it. Watch the world make room.</p>
+      <div class="suggestions">
+        <button class="suggestion" data-prompt="Build a glass house by the water">A glass house by the water <span>↗</span></button>
+        <button class="suggestion" data-prompt="Make the sky purple and fill it with stars">A sky full of stars <span>↗</span></button>
+        <button class="suggestion" data-prompt="Put a giant redwood tree here">A giant redwood tree <span>↗</span></button>
+      </div>
+    </section>
+    <aside class="event-stack" id="events" aria-live="polite"></aside>
+    <div class="right-rail">
+      <div class="compass"><span>N</span><div class="compass-face"><i></i><b></b></div></div>
+      <div class="map-card"><canvas id="minimap" width="120" height="120"></canvas><span class="map-you"></span><small>YOUR LITTLE CORNER</small></div>
+    </div>
+    <section class="bottom-ui">
+      <div class="controls-hint"><span class="key">W</span><span class="key-stack"><i class="key">A</i><i class="key">S</i><i class="key">D</i></span><span>TO WANDER</span><b>·</b><span class="key key-wide">MOUSE</span><span>TO LOOK</span></div>
+      <form class="command" id="command-form">
+        <div class="command-symbol">✳</div>
+        <label class="visually-hidden" for="wish">Imagine something for this world</label>
+        <input id="wish" name="wish" autocomplete="off" placeholder="Imagine something..." maxlength="140" />
+        <span class="input-note">EVERYTHING IS POSSIBLE HERE</span>
+        <button type="submit" id="make-button"><span>MAKE IT REAL</span><i>↗</i></button>
+      </form>
+      <div class="bottom-note"><span>✦</span> YOUR WORLD, YOUR RULES <span class="bottom-sep">/</span> NOTHING IS PERMANENT <button id="reset-world">RESET WORLD</button></div>
+    </section>
+    <div class="mobile-controls" aria-label="Movement controls">
+      <button data-move="forward" aria-label="Move forward">↑</button><button data-move="left" aria-label="Move left">←</button><button data-move="back" aria-label="Move backward">↓</button><button data-move="right" aria-label="Move right">→</button>
+    </div>
+    <div class="toast" id="toast"></div>
+    <div class="loading" id="loading"><div class="loading-mark">E</div><span>MAKING A LITTLE ROOM FOR YOU...</span></div>
+  </main>
+  <script type="module" src="game.js"></script>
+</body>
+</html>
